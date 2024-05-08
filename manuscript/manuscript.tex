@@ -1,0 +1,418 @@
+\documentclass[12pt]{article}
+\usepackage{geometry}
+\geometry{a4paper}
+\usepackage[round, sort]{natbib}
+\usepackage{graphicx}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{textcomp}
+\usepackage{gensymb}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{authblk}
+\usepackage[running]{lineno}
+\usepackage{setspace}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{times}
+
+
+\topmargin 0.0cm
+\oddsidemargin 0.2cm
+\textwidth 16cm 
+\textheight 21cm
+\footskip 1.0cm
+
+\doublespacing
+
+\renewcommand\Authfont{\fontsize{12}{14.4}\selectfont}
+\renewcommand\Affilfont{\fontsize{10}{10.8}\itshape}
+
+
+
+
+\title{\normalsize TITLE }
+
+\author[a,*]{AUTHOR NAME}
+
+%\author[a,*]{Tad A Dallas}
+
+
+\affil[a]{Department of Biological Sciences, University of South Carolina, Columbia, SC, 29208 }
+
+
+
+\renewcommand\Authands{ and }
+\date{ \small *Corresponding author: AUTHOREMAIL@mailbox.sc.edu or gmail.com}
+
+
+
+%% Potential reviewers
+% Names and email addresses of potential reviewers
+% 
+% 
+% 
+% 
+% 
+% 
+
+
+
+
+
+
+\begin{document}
+
+
+\maketitle
+
+\setstretch{1}
+\vspace{-1cm}
+\noindent \textbf{Running title}:   \\
+
+
+\noindent \textbf{Author contributions}: All authors contributed to manuscript writing. \\
+
+
+\noindent \textbf{Acknowledgements}: This work has been supported by ... .  \\
+
+
+\noindent \textbf{Data accessibility}: $R$ code is available on figshare at \\ \texttt{https://doi.org/ }. \\
+
+
+\noindent \textbf{Keywords}:  \\ 
+
+\noindent \textbf{Conflict of interest}: The authors have no conflicts of interest to declare.\\
+
+
+
+
+\clearpage
+
+\linenumbers
+
+
+\noindent {\large TITLE}
+
+\setstretch{1.3}
+
+
+\subsection*{Abstract}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\clearpage
+
+\setstretch{1.3}
+\subsection*{Introduction}
+
+\paragraph*{}
+
+
+
+\paragraph*{}
+
+
+
+
+
+
+\paragraph*{}
+
+
+
+
+% thesis
+\paragraph*{}
+
+
+
+
+
+
+
+
+
+
+
+
+
+%----------
+\subsection*{Methods}
+
+\paragraph*{Data}
+
+
+
+
+\paragraph*{Approach}
+
+
+\begin{equation}
+DTW(x,y) = min_{\pi \in \bf{A(x,y)}} \left( \sum_{(i,j)\in \pi } d(x_{i}, y_{j})^{q}\right)^{1/q}
+\label{eq:dtw}
+\end{equation}
+
+
+
+
+
+
+
+
+
+
+
+\paragraph*{Another methods paragraph}
+
+
+
+
+
+\paragraph*{Reproducibility}
+$R$ code and data to reproduce the analyses is provided at \\
+\texttt{https://doi.org/}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+% -------------------
+\subsection*{Results}
+
+
+\paragraph*{}
+
+
+
+\paragraph*{}
+
+
+
+\paragraph*{}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+% -------------------
+\subsection*{Discussion}
+
+\paragraph*{}
+
+
+
+\paragraph*{}
+
+
+
+\paragraph*{}
+
+
+
+\paragraph*{}
+
+
+
+\paragraph*{}
+
+
+
+
+
+
+
+
+\paragraph*{}
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+\clearpage
+
+\bibliography{var}
+\bibliographystyle{jae}
+
+
+
+
+
+
+
+\clearpage
+\subsection*{Tables}
+
+
+\begin{table}[ht]
+\centering
+\caption{A table with caption. }
+\label{tab:moran}
+\begin{tabular}{lllllll}
+  \hline
+  covariate & t-SNE axis & obs & exp & sd & $p$-value & $z$-score \\ 
+  \hline
+  geography       & 1 & 0.02963 & -0.00032 & 0.00014 & \textbf{$<$ 0.0001} & 216.3 \\ 
+                  & 2 & 0.01930 & -0.00032 & 0.00014 & \textbf{$<$ 0.0001} & 141.7 \\ 
+  age structure   & 1 & 0.00043 & -0.00032 & 0.00001 & \textbf{$<$ 0.0001} & 60.5  \\ 
+                  & 2 & 0.00017 & -0.00032 & 0.00001 & \textbf{$<$ 0.0001} & 39.4  \\ 
+  population size & 1 & 0.00002 & -0.00032 & 0.00003 & \textbf{$<$ 0.0001} & 11.7  \\ 
+                  & 2 & 0.00004 & -0.00032 & 0.00003 & \textbf{$<$ 0.0001} & 12.3  \\ 
+  $R_0$           & 1 & 0.00339 & -0.00032 & 0.00003 & \textbf{$<$ 0.0001} & 110.7 \\ 
+                  & 2 & 0.00135 & -0.00032 & 0.00003 & \textbf{$<$ 0.0001} & 49.8  \\ 
+
+ \hline
+\end{tabular}
+\end{table}
+
+
+
+
+
+
+
+\clearpage
+\subsection*{Figures}
+
+\begin{figure}[h!]
+  \begin{center}
+    %\includegraphics[width=\textwidth]{Figures/concept.pdf}
+    \caption{A figure with caption. }
+    \label{fig:concept}
+  \end{center}
+\end{figure}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\clearpage 
+
+\newcommand{\beginsupplement}{%
+        \setcounter{page}{1}
+        \setcounter{table}{0}
+        \renewcommand{\thetable}{S\arabic{table}}%
+        \setcounter{figure}{0}
+        \renewcommand{\thefigure}{S\arabic{figure}}%
+        }
+
+\section*{Supplementary materials}
+
+\begin{center}
+\textbf{Title}:       \\
+\textbf{Authors}:     \\
+\end{center}
+
+\beginsupplement
+
+
+\subsubsection*{}
+ 
+
+\begin{figure}[h!]
+  \begin{center}
+    %\includegraphics[width=0.75\textwidth]{Figures/.pdf}
+    \caption{Caption }
+    \label{fig:label}
+  \end{center}
+\end{figure}
+
+
+
+
+
+
+
+
+
+
+\end{document}

@@ -1,0 +1,217 @@
+---
+title: "TITLE"
+author: "AUTHORS"
+includes:
+  in_header:
+    - \usepackage{lmodern}
+output:
+  pdf_document:
+    fig_caption: yes
+    fig_height: 6
+    fig_width: 6
+    toc: yes
+  html_document:
+    fig_caption: yes
+    fig_height: 6
+    fig_width: 6
+    theme: journal
+---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+
+install.packages('igraph')
+install.packages('plyr')
+install.packages('dplyr')
+
+# data manipulation libraries
+library(igraph)
+library(plyr)
+library(dplyr)
+
+```
+
+
+
+
+
+```{r}
+
+
+```
+
+
+
+
+```{r}
+
+```
+
+
+
+
+
+All functions documented in the following format
+
+```{r}
+ 
+#' Plot a linear fit within the bounds of the data, and insert fit stats into plot
+#'
+#' @param y a vector 
+#' @param x a vector
+#' @param	forceIntercept (default = NULL) what is the intercept value to use (useful 
+#'   for relationships that need to be forced through origin
+#' @param legPos position of the legend (which is the slope and p-value; default=NULL)
+#'   other values are "topleft", "bottomleft", "topright", "bottomright".
+#' @param justMod if TRUE, no segment is drawn, but the model object is returned
+#' @param textCol color of line and text.
+#' @param ... other graphical parameters taht will be handed to the lines function 
+#'
+#' @return nothing 
+#'
+#' @importFrom grDevices adjustcolor colorRampPalette
+#' @importFrom graphics lines text
+#' @importFrom stats cor lm na.omit predict
+#'
+#' @export
+
+plotSegments <- function(y,x, 
+	forceIntercept=NULL, legPos=NULL,
+  justMod = FALSE, textCol=1, ...){
+	if(is.null(forceIntercept)){
+	  m <- lm(y~x)
+	}else{
+	  m <- lm(y ~ 0 + x)
+    preds <- predict(m, 
+      newdata=data.frame(x=c(min(x, na.rm=TRUE), max(x, na.rm=TRUE))))
+    lines(y=preds, x=c(min(x, na.rm=TRUE), max(x, na.rm=TRUE)), 
+      col=textCol, ...)
+		return(m)
+	}
+  if(justMod){
+    return(m)
+  }else{
+    lty <- ifelse(summary(m)[[4]][2,4] < 0.05, 1, 5)
+    preds <- predict(m, 
+      newdata=data.frame(x=c(min(x, na.rm=TRUE), max(x, na.rm=TRUE))))
+    lines(y=preds, x=c(min(x, na.rm=TRUE), max(x, na.rm=TRUE)), 
+      lty=lty, col=textCol, ...)
+    b <- format(summary(m)$coefficients[2],digits=2)
+    pee <- format(summary(m)$coefficients[8],digits=4)
+    if(pee < 0.0001){
+      p <- '< 0.0001'
+    }else{
+      p <- paste('= ', pee, sep='')
+    }
+    if(!is.null(legPos)){
+      legend(legPos, xpd=TRUE, legend=bquote(beta==.(b)~';'~'p'~.(p)), 
+        col=textCol, bty='n')
+    }
+  }
+}
+
+
+```
+
+
+
+
+
+
+Another useful function
+
+```{r}
+
+#' make hexbinplot
+#' 
+#' @param x one of the variables to plot
+#' @param y the other one!
+#' @param colz colors!
+#' @param nbin number of bins to group the data
+#' @param ... other arguments handed to plot
+#'
+#' @return a hexbin plot
+
+getHex <- function(x,y, colz=NULL, nbin=100,...){
+  require(dplyr)
+  require(hexbin)
+  if(is.null(colz)){
+    colz <- viridis::viridis
+  }
+  hex <- hexbin(x, y, xbins=nbin, ...)
+  # divide counts by 2 since you previously doubled the pairwise comparisons
+  hex@count <- hex@count / 2 
+  plot(hex, colramp = colz)
+  hex
+}
+
+
+```
+
+
+
+
+
+
+
+A linear regression of random data
+
+
+```{r}
+
+y <- rnorm(1000)
+x <- rnorm(1000)
+x2 <- x * y * runif(1000)
+
+
+mod <- glm(y ~ x + x2)
+
+summary(mod)
+
+```
+
+
+
+
+
+
+
+```{r}
+
+plot(y, x)
+plotSegments(y,x, 
+  legPos='bottomright', textCol='dodgerblue'
+)
+
+```
+
+
+
+
+
+
+```{r}
+
+sessionInfo()
+
+```
+
+
+
