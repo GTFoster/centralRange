@@ -2,7 +2,7 @@
 
 
 **Authors**:
-Author name and affiliation
+Grant Foster
 
 
 **Title**: 
@@ -11,8 +11,9 @@ Manuscript title
 
 
 
-**Abstract**:
-Working abstract or project description
+**Idea**:
+Somewhat derivative, but I saw [this paper](https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/1365-2656.13986) by Moulatlet et al. and thought it was a cool idea to see if correlates like geographic range size map onto species position within mutualistic networks. I think it's particularly interesting in the context of homoginzation of local networks due to introductions of nonnative species. Innately, I do think that range size and centrality should be linked. All else being equal, species with larger ranges overlap with more potential partners, increasing the chance their linkage is represented in the global metaweb. However, is this actually true in plant-pollinator systems? Are their defined expectations for these based network and species-area relationships we can draw on? 
+
 
 
 
@@ -35,10 +36,6 @@ rmarkdown::render('analysis/analysis.Rmd', 'pdf_document')
 
 
 
-
-## notes
-
-Other ways to organize your workflow exist. There's `compendium` [more info here](https://cran.r-project.org/web/packages/rcompendium/vignettes/working_with_a_compendium.html), as well as folks who advocate using [R package structure as a way to organize project workflows](http://faculty.washington.edu/bmarwick/PDFs/Marwick-Boettiger-Mullen-2018-TAS-research-compendia.pdf)
 
 
 

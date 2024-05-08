@@ -19,199 +19,136 @@ output:
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+Let's check out Mangal and see if we can get some more points
 ```{r}
-
-install.packages('igraph')
-install.packages('plyr')
-install.packages('dplyr')
-
-# data manipulation libraries
+library(rmangal)
 library(igraph)
-library(plyr)
 library(dplyr)
-
+library(ggplot2)
+library(gridExtra)
 ```
 
+4499	4529	
+```{r eval=FALSE}
+#mgs <- rmangal::search_datasets("pollinator")
+#mgn <- get_collection(mgs)
 
+nodes <- mgn[[1000]]
+mgn[[1]]$interactions
+mgn[[1]]$network
 
+summary(mgn)[[1]]
 
-
-```{r}
-
-
+#save(mgn, amPol, file="data/Mangel_Wol_Query.Rda")
 ```
 
-
-
-
 ```{r}
-
+load("data/Mangel_Wol_Query.Rda")
 ```
 
-
-
-
-
-All functions documented in the following format
+#amPol is from WOL
+#mgn is from Mangel
 
 ```{r}
- 
-#' Plot a linear fit within the bounds of the data, and insert fit stats into plot
-#'
-#' @param y a vector 
-#' @param x a vector
-#' @param	forceIntercept (default = NULL) what is the intercept value to use (useful 
-#'   for relationships that need to be forced through origin
-#' @param legPos position of the legend (which is the slope and p-value; default=NULL)
-#'   other values are "topleft", "bottomleft", "topright", "bottomright".
-#' @param justMod if TRUE, no segment is drawn, but the model object is returned
-#' @param textCol color of line and text.
-#' @param ... other graphical parameters taht will be handed to the lines function 
-#'
-#' @return nothing 
-#'
-#' @importFrom grDevices adjustcolor colorRampPalette
-#' @importFrom graphics lines text
-#' @importFrom stats cor lm na.omit predict
-#'
-#' @export
+length(unique(amPol$network_name))
+length(mgn)
 
-plotSegments <- function(y,x, 
-	forceIntercept=NULL, legPos=NULL,
-  justMod = FALSE, textCol=1, ...){
-	if(is.null(forceIntercept)){
-	  m <- lm(y~x)
-	}else{
-	  m <- lm(y ~ 0 + x)
-    preds <- predict(m, 
-      newdata=data.frame(x=c(min(x, na.rm=TRUE), max(x, na.rm=TRUE))))
-    lines(y=preds, x=c(min(x, na.rm=TRUE), max(x, na.rm=TRUE)), 
-      col=textCol, ...)
-		return(m)
-	}
-  if(justMod){
-    return(m)
-  }else{
-    lty <- ifelse(summary(m)[[4]][2,4] < 0.05, 1, 5)
-    preds <- predict(m, 
-      newdata=data.frame(x=c(min(x, na.rm=TRUE), max(x, na.rm=TRUE))))
-    lines(y=preds, x=c(min(x, na.rm=TRUE), max(x, na.rm=TRUE)), 
-      lty=lty, col=textCol, ...)
-    b <- format(summary(m)$coefficients[2],digits=2)
-    pee <- format(summary(m)$coefficients[8],digits=4)
-    if(pee < 0.0001){
-      p <- '< 0.0001'
-    }else{
-      p <- paste('= ', pee, sep='')
-    }
-    if(!is.null(legPos)){
-      legend(legPos, xpd=TRUE, legend=bquote(beta==.(b)~';'~'p'~.(p)), 
-        col=textCol, bty='n')
-    }
-  }
+#Creating global meta web from Mangal Data
+output <- NULL
+for(i in 1:length(mgn)){
+  temp_inters <- as_long_data_frame(igraph::as.igraph(mgn[[i]]))
+  temp_inters <- temp_inters %>% dplyr::select(., to_taxonomy.name, from_taxonomy.name, to_taxonomy.gbif, from_taxonomy.gbif, network_id) %>% unique()
+  output <- rbind(output, temp_inters)
 }
 
+nrow(output) #Total number of interactions
+```
 
+```{r}
+metaweb <- output %>% dplyr::filter(., is.na(to_taxonomy.gbif)==FALSE & is.na(from_taxonomy.gbif)==FALSE) %>% dplyr::select(., -network_id) %>% unique()
+class(metaweb)
+rownames(metaweb) <- 1:nrow(metaweb)
+
+imeta <- igraph::graph_from_data_frame(metaweb, directed=F) #Create idgraph object
+```
+
+Let's drop nodes from disconnected components
+```{r}
+V(imeta)$component <- components(imeta)$membership
+components(imeta)$csize #Largest component has 959 nodes; the rest are orders of magnitude smaller
+
+
+
+imetaC <- delete.vertices(imeta, V(imeta)$component[V(imeta)$component!=which.max(components(imeta)$csize)]) #Removevertices that aren't included in the largest component
 ```
 
 
 
 
+```{r}
+igraph::centralization.betweenness(imetaC)
+igraph::centralization.closeness(imetaC)
+igraph::centralization.degree(imetaC, mode="all")
+igraph::centralization.evcent(imetaC)
 
-
-Another useful function
+metaCent <- data.frame(between=igraph::centralization.betweenness(imetaC)$res,
+           close=igraph::centralization.closeness(imetaC)$res,
+           deg=igraph::centralization.degree(imetaC, mode="all")$res,
+           eig=igraph::centralization.evcent(imetaC)$vector)
+```
 
 ```{r}
+pear_mat <- cor(metaCent, method="pearson", use="complete.obs")
+spearmat <- cor(metaCent, method="spearman", use="complete.obs")
 
-#' make hexbinplot
-#' 
-#' @param x one of the variables to plot
-#' @param y the other one!
-#' @param colz colors!
-#' @param nbin number of bins to group the data
-#' @param ... other arguments handed to plot
-#'
-#' @return a hexbin plot
+hist(metaCent$close)
+plot(metaCent$close, metaCent$between)
+plot(metaCent$close, metaCent$degree)
+plot(metaCent$close, metaCent$eig)
 
-getHex <- function(x,y, colz=NULL, nbin=100,...){
-  require(dplyr)
-  require(hexbin)
-  if(is.null(colz)){
-    colz <- viridis::viridis
-  }
-  hex <- hexbin(x, y, xbins=nbin, ...)
-  # divide counts by 2 since you previously doubled the pairwise comparisons
-  hex@count <- hex@count / 2 
-  plot(hex, colramp = colz)
-  hex
+parpl <- list()
+for(j in 1:4){
+parpl[[j]] <- ggplot(metaCent, aes(x=metaCent[,1], y=metaCent[,j]))+geom_point()+xlab("between")+ylab(colnames(metaCent)[j])
+}
+for(j in 1:4){
+parpl[[j+4]] <- ggplot(metaCent, aes(x=metaCent[,2], y=metaCent[,j]))+geom_point()+xlab("close")+ylab(colnames(metaCent)[j])
+}
+for(j in 1:4){
+parpl[[j+8]] <- ggplot(metaCent, aes(x=metaCent[,3], y=metaCent[,j]))+geom_point()+xlab("deg")+ylab(colnames(metaCent)[j])
+}
+for(j in 1:4){
+parpl[[j+12]] <- ggplot(metaCent, aes(x=metaCent[,4], y=metaCent[,j]))+geom_point()+xlab("eig")+ylab(colnames(metaCent)[j])
 }
 
+#pdf(file="figs/PairwiseCors.pdf", width=11, height=11)
+grid.arrange(parpl[[1]], 
+             parpl[[2]], 
+             parpl[[3]],
+             parpl[[4]],
+             parpl[[5]],
+             parpl[[6]],
+             parpl[[7]],
+             parpl[[8]],
+             parpl[[9]],
+             parpl[[10]],
+             parpl[[11]],
+             parpl[[12]],
+             parpl[[13]],
+             parpl[[14]],
+             parpl[[15]],
+             parpl[[16]],
+             nrow = 4)
+#dev.off()
 
+
+#pdf(file="figs/CentralityCorrelations.pdf", width=8, height=4)
+par(mfrow = c(1, 2))
+corrplot::corrplot(pear_mat, type = "lower", diag=T, main="Pearson's Correlation", mar=c(0,0,2,0), method="ellipse")
+corrplot::corrplot(spearmat, type = "lower", diag=T, main="Spearman's Correlation", mar=c(0,0,2,0), method="ellipse")
+#dev.off()
 ```
 
 
-
-
-
-
-
-A linear regression of random data
-
-
-```{r}
-
-y <- rnorm(1000)
-x <- rnorm(1000)
-x2 <- x * y * runif(1000)
-
-
-mod <- glm(y ~ x + x2)
-
-summary(mod)
-
-```
-
-
-
-
-
-
-
-```{r}
-
-plot(y, x)
-plotSegments(y,x, 
-  legPos='bottomright', textCol='dodgerblue'
-)
-
-```
-
-
-
-
-
-
-```{r}
-
-sessionInfo()
-
-```
 
 
 
