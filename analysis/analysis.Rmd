@@ -26,6 +26,8 @@ library(igraph)
 library(dplyr)
 library(ggplot2)
 library(gridExtra)
+library(rgbif)
+library(curl)
 ```
 
 4499	4529	
@@ -149,6 +151,54 @@ corrplot::corrplot(spearmat, type = "lower", diag=T, main="Spearman's Correlatio
 ```
 
 
+Set up the function to query GBIF occurance points and filter some obviously problematic ones.
+```{r}
+metaCent$node <- names(imetaC[1]) #Assign node names in metaweb to centrality measures
+#Maybe this will solve curl issues? Honestly not sure :(
+#curl::handle_setopt(new_handle(),http_version = 2)
+curlopts=list(http_version=2)
+gbifQueryfilter <- function(name){
+  #curl::handle_setopt(new_handle(),http_version = 2)
+  record <- rgbif::occ_search(scientificName = name, hasGeospatialIssue=FALSE)
+  #curl::handle_setopt(new_handle(),http_version = 2)
+  keynum <- rgbif::name_backbone(name)$usageKey
+  #curl::handle_setopt(new_handle(),http_version = 2)
+  gbif_download <- occ_download(pred("taxonKey", keynum),format = "SIMPLE_CSV", user="riverman12", pwd="1Chicken!!!", email="fostergt@email.sc.edu")
+  
+  #curl::handle_setopt(new_handle(),http_version = 2)
+  occ_download_wait(gbif_download)
+  #curl::handle_setopt(new_handle(),http_version = 2)
+  spdat <- occ_download_get(gbif_download, path="data/GBIF/") %>%
+    occ_download_import()
+  
+spdat <- spdat %>%
+    dplyr::filter(occurrenceStatus  == "PRESENT") %>%
+    dplyr::filter(!basisOfRecord %in% c("FOSSIL_SPECIMEN")) %>% #Remove fossils
+    CoordinateCleaner::cc_cen( #Remove records within 2k buffer of country centroids
+    lon = "decimalLongitude", 
+    lat = "decimalLatitude", 
+    buffer = 2000, # radius of circle around centroid to look for centroids
+    value = "clean",
+    test="both")  %>% 
+    cc_sea( #Remove oceanic records
+  lon = "decimalLongitude",
+  lat = "decimalLatitude"
+  ) %>%
+  dplyr::filter(., establishmentMeans != "introduced") #Remove known introduced spp
 
+occs <- dplyr::select(spdat, genus, species,scientificName, decimalLatitude, decimalLongitude) %>% unique()
+
+filname <- name %>% tolower() %>% gsub(pattern=" ", replacement="_",.) %>%
+  paste("data/GBIF/occs/", ., ".csv", sep="")
+write.csv(occs, file=filname, row.names = FALSE)
+}
+```
+
+Apply it for each node species
+```{r}
+for(i in 1:length(metaCent$node)){
+  gbifQueryfilter(metaCent$node[i])
+}
+```
 
 
