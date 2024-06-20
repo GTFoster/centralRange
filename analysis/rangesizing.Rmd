@@ -1,0 +1,132 @@
+---
+title: "RangeCalculation"
+author: "Grant Foster"
+date: "2024-06-17"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(igraph)
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(rgbif)
+library(curl)
+library(BIEN)
+library(maps)
+library(sf)
+sf_use_s2(FALSE)
+library(terra)
+library(maps)
+```
+
+```{r}
+load("data/MetaWebCentrality.Rda") #Load in Global Metaweb
+metaCent$biennm <- gsub(pattern=" ", replacement="_",   metaCent$node) #Make name convention same a bien
+```
+
+```{r}
+bienrngs <- BIEN::BIEN_ranges_list() #Grab total list of ranges bein has
+toquery <- metaCent$biennm[metaCent$biennm %in% bienrngs$species] #Make list of those queryable
+
+
+rgmaps <-BIEN_ranges_load_species(species = toquery) #Query bien
+
+bienrgsizes <- data.frame(sp=rgmaps$species, rgsize=st_area(sf::st_as_sf(rgmaps))) #Make a df with range sizes. Use st_area to combine area of all contained polygons
+hist(bienrgsizes$rgsize)
+
+```
+
+Plotting the smallest and largest ranged species as a sense check
+```{r}
+rgmaptest_small <-BIEN_ranges_load_species(species = "Nidularium_cariacicaense")
+rgmaptest_large <-BIEN_ranges_load_species(species = "Plantago_major")
+map('world', fill = TRUE, col = "white")
+plot(rgmaptest_large, col="dark green", add=TRUE)
+plot(rgmaptest_small, col="red", add=T)
+
+
+redClover <- BIEN_ranges_load_species(species = "Trifolium pratense")
+clovdat <- read.csv(file="data/GBIF/occs/trifolium_pratense.csv")
+map('world', fill = TRUE, col = "white")
+plot(redClover, col="navy", add=T)
+points(x=clovdat$decimalLongitude, y=clovdat$decimalLatitude, col="red", add=TRUE)
+```
+
+The downside here is that while many plants have rangemaps in BIEN, we don't have a good source for expert rangemaps for insects (IUCN only has odonates for example).
+
+So that mean's we'll have to probably create ranges from existing presence data.
+```{r}
+dat <- read.csv(file="data/GBIF/occs/datura_wrightii.csv")
+dat_old <- read.csv(file="data/GBIF/occs/datura_wrightii_old.csv")
+bienmapDwrightii <-BIEN_ranges_load_species(species = "Datura wrightii")
+
+map('world', fill = TRUE, col = "white")
+plot(bienmapDwrightii, col="dark green", add=TRUE)
+points(x=dat$decimalLongitude, y=dat$decimalLatitude, col="red")
+
+hist(dat$decimalLongitude)
+```
+
+Tad's MCH Code
+```{r}
+#'
+#' @param x latitude
+#' @param y longitude
+#' @param convexHull use convex hull to estimate geographic range size
+#' @param returnPoly just return the polygon, not the area
+#' @param equalArea use equal area projection (important if countCells is TRUE)
+#' @param msk environmental mask to use, so that we don't count ocean cells
+#' @param countCells estimate geographic range by counting the raster cells under equal 
+#'   area projection? Should be directly proportional to actual area, and 
+#'   easy conversion given resolution.
+#' 
+#' @returns geographic range size
+
+getArea <- function(x,y, convexHull=TRUE, 
+	returnPoly=FALSE, equalArea=TRUE, msk=env2, countCells=TRUE){
+  rem <- which(is.na(x) | is.na(y))
+  if(any(rem)){
+    x <- x[-rem]
+    y <- y[-rem]
+  }
+  if(convexHull){
+    tmp <- chull(x,y)
+    x <- x[tmp]
+    y <- y[tmp]
+  }
+  poly <- polygon(cbind(c(x, x[1]), c(y, y[1])))
+  poly2 <- sp::Polygons(list(poly), ID = "A")
+  ret <- SpatialPolygons(list(poly2), proj4string=CRS("+proj=longlat"))
+	
+  if(equalArea){
+    ret <- sp::spTransform(ret, CRS("+proj=laea +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=km +no_defs"))
+		if(returnPoly){
+		  return(ret)
+		}else{
+			if(countCells){
+				ret2 <- as.data.frame(raster::extract(msk, ret))
+				ret2 <- ret2[which(!is.na(ret2[,1])), ]
+				return(nrow(ret2))
+			}else{
+		  	return(area(ret))
+			}
+		}
+  }
+  if(equalArea==FALSE){
+		if(returnPoly){
+		  return(poly2)
+		}else{
+		  return(poly2@area)
+		}
+  }
+}
+
+
+getArea(x=dat$decimalLongitude, y=dat$decimalLatitude)
+```
+
