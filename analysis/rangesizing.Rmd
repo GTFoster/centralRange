@@ -22,6 +22,15 @@ library(sf)
 sf_use_s2(FALSE)
 library(terra)
 library(maps)
+library(data.table)
+library(geodata)
+#library(rangeBuilder) #For creating alpha hulls #Edit: This is a good approach, but takes way too long. 
+library(alphahull)
+#Erase later-only for debugging
+library(tictoc)
+library(exactextractr)
+library(geosphere)
+library(hypervolume)
 ```
 
 ```{r}
@@ -29,7 +38,9 @@ load("data/MetaWebCentrality.Rda") #Load in Global Metaweb
 metaCent$biennm <- gsub(pattern=" ", replacement="_",   metaCent$node) #Make name convention same a bien
 ```
 
-```{r}
+
+For most plant species, we have a pretty good sense of their geographic ranges. We'll load in the BIEN ranges for known species now in order to have something to compare our estimated ranges to as a sense check. 
+```{r, eval=FALSE}
 bienrngs <- BIEN::BIEN_ranges_list() #Grab total list of ranges bein has
 toquery <- metaCent$biennm[metaCent$biennm %in% bienrngs$species] #Make list of those queryable
 
@@ -37,96 +48,634 @@ toquery <- metaCent$biennm[metaCent$biennm %in% bienrngs$species] #Make list of 
 rgmaps <-BIEN_ranges_load_species(species = toquery) #Query bien
 
 bienrgsizes <- data.frame(sp=rgmaps$species, rgsize=st_area(sf::st_as_sf(rgmaps))) #Make a df with range sizes. Use st_area to combine area of all contained polygons
-hist(bienrgsizes$rgsize)
-
+#hist(bienrgsizes$rgsize)
 ```
 
 Plotting the smallest and largest ranged species as a sense check
 ```{r}
 rgmaptest_small <-BIEN_ranges_load_species(species = "Nidularium_cariacicaense")
 rgmaptest_large <-BIEN_ranges_load_species(species = "Plantago_major")
-map('world', fill = TRUE, col = "white")
+maps::map('world', fill = TRUE, col = "white")
 plot(rgmaptest_large, col="dark green", add=TRUE)
 plot(rgmaptest_small, col="red", add=T)
 
 
 redClover <- BIEN_ranges_load_species(species = "Trifolium pratense")
 clovdat <- read.csv(file="data/GBIF/occs/trifolium_pratense.csv")
-map('world', fill = TRUE, col = "white")
+
+#pdf(file="figs/mapping/rawClover.pdf", width=8.5, height=11)
+maps::map('world', fill = TRUE, col = "white")
 plot(redClover, col="navy", add=T)
-points(x=clovdat$decimalLongitude, y=clovdat$decimalLatitude, col="red", add=TRUE)
+points(x=clovdat$decimalLongitude, y=clovdat$decimalLatitude, col="red")
+#dev.off()
+
+clovsmall <- clovdat[sample(1:nrow(clovdat), 1000),] #Subsample red clover so it's not so many points
+
+maps::map('world', fill = TRUE, col = "white")
+plot(redClover, col="navy", add=T)
+points(x=clovsmall$decimalLongitude, y=clovsmall$decimalLatitude, col="red")
+
 ```
 
-The downside here is that while many plants have rangemaps in BIEN, we don't have a good source for expert rangemaps for insects (IUCN only has odonates for example).
+## Sampling from range edges
 
-So that mean's we'll have to probably create ranges from existing presence data.
+When we downsample highly sampled species, we're likely to artificially reduce their range sizes as a result. To get over this, we want to preferentially keep points near the edges of our ranges. 
+
+
 ```{r}
-dat <- read.csv(file="data/GBIF/occs/datura_wrightii.csv")
-dat_old <- read.csv(file="data/GBIF/occs/datura_wrightii_old.csv")
-bienmapDwrightii <-BIEN_ranges_load_species(species = "Datura wrightii")
+Clima <- geodata::worldclim_global("worldclim", var="bio", res=5)
 
-map('world', fill = TRUE, col = "white")
-plot(bienmapDwrightii, col="dark green", add=TRUE)
-points(x=dat$decimalLongitude, y=dat$decimalLatitude, col="red")
+tic()
+clovdat$cells <- terra::cellFromXY(Clima, xy=clovdat[,5:4])
+toc()
 
-hist(dat$decimalLongitude)
+indcells <- clovdat %>% dplyr::group_by(., cells) %>% dplyr::slice_sample(n = 1)
 ```
 
-Tad's MCH Code
+
+First, we grab wadmin data to assign each datapoint to a continent
+```{r}
+wadmin <- geodata::world(resolution = 5, level =0, path="data/climate") #Download world administrative boundaries
+ccs <- geodata::country_codes() #get country codes-includes continent key
+
+wadminrast <- terra::rasterize(wadmin, Clima, field="GID_0") #
+
+#tictoc::tic()
+#nms <- terra::extract(wadmin, y=indcells[,5:4]) #Assign each point in clovsmall to an admin boundary
+#indcells$ISO3 <- nms$GID_0 #Assign country name code
+#tictoc::toc()
+#colnames(ccs)
+
+indcells$ISO3 <- wadminrast[indcells$cells]$GID_0
+indcells <- ccs %>% dplyr::select(., ISO3, continent) %>% left_join(indcells, ., by=c("ISO3"))
+
+#maps::map("world", ylim=c(-50,-32), xlim=c(160,180))
+#points(x=nas$decimalLongitude, y=nas$decimalLatitude, col="red")
+#nas <- indcells %>% dplyr::filter(is.na(continent)==TRUE)
+
+```
+
+### This is the new stuff
+```{r}
+fls <- list.files(path="data/GBIF/occs/")
+nms <- gsub("_", " ", fls) %>% gsub(".csv", "", .)
+nms <- paste(toupper(substr(nms, 1,1)), substr(nms,2,100), sep="")
+missing <- metaCent[metaCent$node %in% nms==FALSE,]
+```
+
+
+```{r}
+dat <- metaCent[metaCent$node %in% nms==TRUE,]
+dat$flnm <- paste(gsub(" ", "_", tolower(dat$node)),".csv", sep="")
+
+tictoc::tic()
+temp <- dat[595,]
+filtemp <- paste("data/GBIF/occs/", temp$flnm, sep="") #set up temp filename
+tempdat <- read.csv(file=filtemp) #read in file
+
+tempdat$cells <- terra::cellFromXY(Clima, xy=tempdat[,5:4]) #Grab the cell ids
+indcells <- tempdat %>% dplyr::group_by(., cells) %>% dplyr::slice_sample(n = 1) #remove redundant cells (randomly choose 1 point)
+indcells$ISO3 <- wadminrast[indcells$cells]$GID_0 #grab country ID
+indcells <- ccs %>% dplyr::select(., ISO3, continent) %>% left_join(indcells, ., by=c("ISO3")) #Grab continent
+
+output <- NULL
+for(cont in unique(ccs$continent)){
+  temp <- dplyr::filter(indcells, continent==cont)
+  if(nrow(temp)==0){ #If continent is absent, skip
+    next
+  }
+  if(nrow(temp)<10){ #Assign NAs if less than 10 occurance points in a continent
+    temp$dist <- NA
+  }
+  if(nrow(temp)>9){ #If 10 or more occurances, apply our function
+    tmp <- grDevices::chull(x=temp$decimalLongitude, y=temp$decimalLatitude) #find the chull index
+    xvals <- temp$decimalLongitude[tmp] #Extract the actual longitude values based on index
+    yvals <- temp$decimalLatitude[tmp] #Repeat for actual latitude values
+    
+    poly <- sf::st_polygon(cbind(list(cbind(c(xvals, xvals[1]), c(yvals, yvals[1]))))) #Create a sf polygon from the mch coords
+    polyvec <- terra::vect(poly) #convert to terra vect iobject for terra::mask()
+    crs(polyvec) <- crs(Clima) #assign the right crs
+    tempMask <-  mask(Clima, polyvec) #mask our temperature data by the polygon (this maintains 0 for oceans and whatnot)
+    df_dat <- terra::as.data.frame(tempMask, na.rm=T) #Extract the non NA values within the mask
+    hv = hypervolume_box(df_dat[,c(1,4,12,15)]) #Find niche volume using kde, informed by mean precip, temp, and seasonality of both. 
+  tempvals <- data.frame(ncells=hv@Volume, climVol=hv@Volume, cont=cont, sp="speciesnm")
+   output <- rbind(output, tempvals)
+  }
+}
+tictoc::toc()
+
+    poly <- sf::st_polygon(cbind(list(cbind(c(xvals, xvals[1]), c(yvals, yvals[1]))))) #Create a sf polygon from the mch coords
+    polyvec <- terra::vect(poly) #convert to terra vect iobject for terra::mask()
+
+
+maps::map('world', fill = TRUE, col = "lightgrey")
+plot(polyvec, add=TRUE, col="red")
+points(x=xvals, y=yvals, col="firebrick")
+
+  crs(polyvec) <- crs(Clima)
+  tempMask <-  mask(Clima, polyvec) #mask our temperature data by the polygon (this maintains 0 for oceans and whatnot)
+  plot(tempMask)
+  df_dat <- terra::as.data.frame(tempMask, na.rm=T) #Extract the non NA values within the mask
+  #quants <- apply(df_dat, MARGIN=2, FUN=quantile, probs=c(0.025,.975))
+  #tempvals <- data.frame(values=c(nrow(df_dat), quants[1,], quants[2,]), label=c("ncell", paste(colnames(df_dat), "lower", sep="_"), paste(colnames(df_dat), "upper", sep="_")), cont=cont,sp="spname")
+  hv = hypervolume_box(df_dat[,c(1,4,12,15)]) #Find niche volume using kde, informed by mean precip, temp, and seasonality of both. 
+  tempvals <- data.frame(ncells=hv@Volume, climVol=hv@Volume, cont=cont, sp="speciesnm")
+```
+
+
+```{r}
+library(hypervolume)
+?hypervolume::hypervolume_box()
+
+data(penguins,package='palmerpenguins')
+penguins_no_na = as.data.frame(na.omit(penguins))
+penguins_adelie = penguins_no_na[penguins_no_na$species=="Adelie",
+                    c("bill_length_mm","bill_depth_mm","flipper_length_mm")]
+hv = hypervolume_box(penguins_adelie,name='Adelie')
+summary(hv)
+```
+
+
+```{r}
+temp <- dplyr::filter(clovsmall, continent=="Europe")
+
+#' @inputxy Input dataframe, which contains decimalLongitude and decimalLatitude
+
+grabdists <- function(inputxy){
+    tmp <- grDevices::chull(x=inputxy$decimalLongitude, y=inputxy$decimalLatitude) #find the chull index
+    x <- inputxy$decimalLongitude[tmp] #Extract the actual longitude values based on index
+    y <- inputxy$decimalLatitude[tmp] #Repeat for actual latitude values
+    
+    x2 <- as.matrix(inputxy[,5:4])
+    line <- as.matrix(data.frame(x=temp$decimalLongitude[tmp], y=temp$decimalLatitude[tmp])) #Create a matrix of our polygon line boundary
+    dists <- geosphere::dist2Line(p=x2, line=line, distfun = distHaversine) #Find minimum distance to that line
+    output <- dists[,'distance'] #grab those distances
+    return(output)
+}
+
+temp$dist_ch <- grabdists(temp)
+
+temp$ranks <- rank(temp$dist)
+
+#Proof of concept
+temp$ranks <- rank(temp$dist) 
+temp$ranks <- round(temp$ranks/(nrow(temp)/8))+1 #Bin our distances
+temp$col <- RColorBrewer::brewer.pal(9, "GnBu")[temp$ranks] #assign coloramp
+maps::map('world', fill = TRUE, col = "white")
+points(x=temp$decimalLongitude, y=temp$decimalLatitude, col=temp$col)
+```
+
+```{r}
+output <- NULL
+for(cont in unique(ccs$continent)){
+  temp <- dplyr::filter(indcells, continent==cont)
+  if(nrow(temp)==0){ #If continent is absent, skip
+    next
+  }
+  if(nrow(temp)<10){ #Assign NAs if less than 10 occurance points in a continent
+    temp$dist <- NA
+  }
+  if(nrow(temp)>9){ #If 10 or more occurances, apply our function
+    temp$dist <- grabdists(temp)
+  }
+  output <- rbind(output, temp) #add to our output object
+}
+
+output <- output %>% group_by(., continent) %>% mutate(prob2=1.01-dist/max(dist)) #Subtract from slightly higher than 1 so that even the most interior points can be sampled with some probability.
+
+hist(dexp(output$prob2, rate=3))
+output$prob3 <- dexp(output$prob2, rate=0.1)
+
+samps <- output %>% group_by(., continent) %>% slice_sample(., n=5000, replace=F, weight_by=prob3)
+
+Asia <- dplyr::filter(output, continent=="Asia")
+Asia_samps <- dplyr::filter(samps, continent=="Asia")
+
+Europe <- dplyr::filter(output, continent=="Europe")
+Europe_samps <- dplyr::filter(samps, continent=="Europe")
+```
+
+```{r}
+maps::map('world', fill = TRUE, col = "white")
+points(x=Europe$decimalLongitude, y=Europe$decimalLatitude, col="red")
+points(x=Europe_samps$decimalLongitude, y=Europe_samps$decimalLatitude, col="navy")
+```
+
+
+
+
 ```{r}
 #'
 #' @param x latitude
 #' @param y longitude
-#' @param convexHull use convex hull to estimate geographic range size
-#' @param returnPoly just return the polygon, not the area
-#' @param equalArea use equal area projection (important if countCells is TRUE)
 #' @param msk environmental mask to use, so that we don't count ocean cells
-#' @param countCells estimate geographic range by counting the raster cells under equal 
-#'   area projection? Should be directly proportional to actual area, and 
-#'   easy conversion given resolution.
+#' @param method method for calculating hulls (case insentitive). Current acceptable values are "mch" and "alphahull"
+#' @param alphaval Alpha value used for calculating alpha hull. Defaults to 20. 
 #' 
-#' @returns geographic range size
+#' @returns geographic range size in terms of # of cells covered in environmental mask
 
-getArea <- function(x,y, convexHull=TRUE, 
-	returnPoly=FALSE, equalArea=TRUE, msk=env2, countCells=TRUE){
+getArea <- function(x,y, equalArea=TRUE, msk, method, alphaval=20, returnHull=TRUE){
+  if(tolower(method) %in% c("mch", "alphahull")==FALSE){
+    stop("No usable method provided")
+  }
+  
   rem <- which(is.na(x) | is.na(y))
   if(any(rem)){
     x <- x[-rem]
     y <- y[-rem]
   }
-  if(convexHull){
-    tmp <- chull(x,y)
+  if(tolower(method)=="mch"){ #Use grDevices to create convex hull
+    tmp <- grDevices::chull(x,y)
     x <- x[tmp]
     y <- y[tmp]
+    poly <- sf::st_polygon(cbind(list(cbind(c(x, x[1]), c(y, y[1]))))) #Create a sf polygon from the mch coords
+    polyvec <- terra::vect(poly) #convert to terra vect iobject for terra::mask()
   }
-  poly <- polygon(cbind(c(x, x[1]), c(y, y[1])))
-  poly2 <- sp::Polygons(list(poly), ID = "A")
-  ret <- SpatialPolygons(list(poly2), proj4string=CRS("+proj=longlat"))
-	
-  if(equalArea){
-    ret <- sp::spTransform(ret, CRS("+proj=laea +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=km +no_defs"))
-		if(returnPoly){
-		  return(ret)
-		}else{
-			if(countCells){
-				ret2 <- as.data.frame(raster::extract(msk, ret))
-				ret2 <- ret2[which(!is.na(ret2[,1])), ]
-				return(nrow(ret2))
-			}else{
-		  	return(area(ret))
-			}
-		}
+  if(tolower(method)=="alphahull"){ #Use alphaHull to creat alpha hulls
+    tmp <-ashape(x = x, y=y, alpha = alphaval)
+    tmp <- data.frame(tmp$edges)[,c( 'x1', 'y1', 'x2', 'y2')]
+    l <- st_linestring(matrix(as.numeric(tmp[1,]), ncol=2, byrow = T))
+    for(i in 2:nrow(tmp)){
+      l <- c(l, st_linestring(matrix(as.numeric(tmp[i,]), ncol=2, byrow = T)))
+    }
+    polyvec <- vect(st_sf(geom = st_sfc(l), crs = crs(msk)) %>% st_polygonize() %>% st_collection_extract())
   }
-  if(equalArea==FALSE){
-		if(returnPoly){
-		  return(poly2)
-		}else{
-		  return(poly2@area)
-		}
+  crs(polyvec) <- crs(msk)
+  tempMask <-  mask(msk, polyvec) #mask our temperature data by the polygon (this maintains 0 for oceans and whatnot)
+  df_dat <- terra::as.data.frame(tempMask[[1]], na.rm=T) #Extract the non NA values within the mask
+  cellcount <- nrow(df_dat)
+  
+  if(returnHull==FALSE){
+     return(cellcount) 
+  }
+  if(returnHull==TRUE){
+    ret <- list(count=cellcount, pgon=polyvec)
+    return(ret) 
+  }
+}
+
+for(cont in unique(ccs$continent)){
+  temp <- 
+area_temp <- getArea(x=Asia$decimalLongitude,y=Asia$decimalLatitude, equalArea=TRUE, msk=Clima, method="alphahull", alphaval=20, returnHull=FALSE)
+ret <- dat.frame(species=)
+
+}
+
+
+output_area <- NULL
+for(cont in unique(ccs$continent)){
+  temp <- dplyr::filter(indcells, continent==cont)
+  if(nrow(temp)==0){ #If continent is absent, skip
+    next
+  }
+  if(nrow(temp)<10){ #Assign NAs if less than 10 occurance points in a continent
+    area_temp <- NA
+  }
+  if(nrow(temp)>9){ #If 10 or more occurances, apply our function
+    area_temp <- getArea(x=Asia$decimalLongitude,y=Asia$decimalLatitude, equalArea=TRUE, msk=Clima, method="alphahull", alphaval=20, returnHull=FALSE)
+  }
+  temp_row <- data.frame(species=unique(indcells$species), continent=cont, area=area_temp)
+  output_area <- rbind(output_area, temp_row) #add to our output object
+}
+
+
+
+maps::map('world', fill = TRUE, col = "white")
+plot(redClover, col="navy", add=T)
+points(x=US$x, y=US$y, col="red")
+plot(c$pgon, add=TRUE, col="green", alpha=0.5)
+```
+
+
+## Dealing with Sampling Bias - Left to a supplement for now
+```{r}
+library(sampbias)
+```
+
+First, let's make a composite df of all of our data
+```{r}
+#Getting climate data
+Clima <- geodata::worldclim_global("worldclim", var="bio", res=5)
+
+fils <- list.files(path="data/GBIF/occs")
+
+comp <- NULL #Read in each seperate occurance file and combine into 1
+for(i in 1:length(fils)){
+  temp <- read.csv(file=paste("data/GBIF/occs/", fils[i], sep=""))
+  comp <- rbind(temp, comp)
+}
+
+comp <- dplyr::filter(comp, species %in% c(amPol$species1, amPol$species2)) #Filter to only include species present in our networks
+
+comp$cells <- terra::cellFromXY(object = Clima, xy=comp[,5:4]) #Grab the cell id in our res 5 raster
+
+set.seed(1)
+comp <- comp %>% #For species-cell combinations that are repeated, subsample randomly so we don't artificially duplicate points. 
+  group_by(., species, cells) %>%
+  slice_sample(., n=1) %>%
+  ungroup()
+
+sort(table(comp$species))
+```
+
+Evan after grabbing unique cell IDs, some species still have more occurances than we can reasonably work with. (White clover still has ~600k points for example). Below, we subsample species further so they're limited to 10k occurance points. 
+```{r}
+set.seed(1)
+smaller <- comp %>% 
+  group_by(species) %>%
+  slice_sample(., n=10000) %>%
+  ungroup
+```
+
+We'll use this randomly generated subset to calculate overall bias in our data (not using the full thing due to computational limitations). We use the sampbias package 
+```{r}
+bias <- sampbias::calculate_bias(x=smaller[,c(2,4,5)],
+                         gaz=NULL,#Use default set of geo structures
+                         terrestrial = TRUE) #Restrict to terrestrial
+
+
+#plot(bias)
+#plot(bias$distance_rasters)
+biasproj <- sampbias::project_bias(bias) #Now that we've calculated bias, project it into space
+#plot(biasproj$Total_percentage)
+#plot(biasproj$`airports+waterbodies+roads+cities`)
+#hist(biasproj$`airports+waterbodies+roads+cities`)
+#hist(biasproj$Total_percentage)
+
+#pdf(file="figs/biasmap.pdf")
+plot(biasproj$Total_percentage)
+#dev.off()
+
+comp$bias <- terra::extract(biasproj$Total_percentage, comp[,5:4])$Total_percentage #Add % sampling efficiency as a column in data
+
+
+comp$prob <- 1-comp$bias/(-100) #Scale sampling between 0 and 1. 
+
+scalef <- 0.25
+comp$prob_scale <- (comp$prob+scalef)/(1+scalef) #Rescale this to a reasonable-we want to weight lower samples patches higher, but not exclude lower patches completely.
+#Scaled where min sampled patches are 1/scalef times more likely to be samples than maximally sampled patches. 
+#hist(comp$prob_scale)
+#range(comp$prob_scale, na.rm=TRUE)
+```
+
+Now that we have data to adjust our sampling based on bias, we resample points from each species based on this bias value. 
+```{r}
+set.seed(1)
+bias_sampled <- comp %>% 
+  dplyr::filter(., is.na(prob_scale)==F) %>%
+  group_by(species) %>%
+  slice_sample(., n=10000, weight_by=prob_scale) %>%
+  ungroup
+```
+
+```{r}
+clovreg <- dplyr::filter(smaller, species=="Trifolium repens") %>% slice_sample(., n=1000)
+clovunbias <- dplyr::filter(bias_sampled, species=="Trifolium repens") %>% slice_sample(., n=1000)
+
+#pdf(file="figs/bias_changes.pdf")
+plot(Clima[[1]])
+points(x=smaller$decimalLongitude[pts], y=smaller$decimalLatitude[pts])
+pts <- sample(1:nrow(bias_sampled), 1000)
+points(x=bias_sampled$decimalLongitude[pts], y=bias_sampled$decimalLatitude[pts], col="red")
+#dev.off()
+
+table(clovreg$cells %in% clovunbias$cells)
+
+plot(Clima[[1]])
+points(x=clovreg$decimalLongitude, y=clovreg$decimalLatitude)
+points(x=clovreg$decimalLongitude, y=clovreg$decimalLatitude, col="red")
+```
+#Creating Alpha hulls
+
+We want seperate hulls for each continent (since we don't want our hulls to span across oceans)
+```{r}
+wadmin <- geodata::world(resolution = 5, level =0, path="data/climate") #Download world administrative boundaries
+
+class(wadmin)
+plot(wadmin)
+
+ccs <- geodata::country_codes() #get country codes-includes continent key
+
+tictoc::tic()
+
+nms <- terra::extract(wadmin, y=clovsmall[,5:4]) #Assign each point to an admin boundary
+clovsmall$GID_0 <- nms$GID_0
+
+vals$ISO3 <- nms$GID_0 #Add that to our country data
+tictoc::toc()
+vals <- ccs %>% dplyr::select(., ISO3, continent) %>% left_join(vals, ccs, by="ISO3")
+
+```
+
+
+#Creating some maps
+
+The downside here is that while many plants have rangemaps in BIEN, we don't have a good source for expert rangemaps for insects (IUCN only has odonates for example).
+
+So that mean's we'll have to probably create ranges from existing presence data.
+
+We'll do so by using our gbif queries
+
+```{r}
+tempGlob <- geodata::worldclim_global(var="tavg", res=10, path = "data/climate") #Load in 10 cell climate raster. Data isn't actually used here, I just want to make sure that my cells match bioclim in case
+
+clovdat$cell <- terra::cellFromXY(tempGlob, xy=cbind(clovdat$decimalLongitude,clovdat$decimalLatitude)) #Find cell identities of each entry
+
+counts <- as.data.frame(table(clovdat$cell)) #Make a df of # of records per cell
+#hist(counts$Freq) 
+
+counts <- dplyr::filter(counts, Freq>=3) %>% dplyr::rename(., cell=Var1) %>% dplyr::mutate(., cell=as.numeric(levels(cell))[cell])#Select the cells at or above 90% quantile
+
+vals <- data.frame(terra::xyFromCell(tempGlob, counts$cell)) #Grap the xy lat longs from the top 5% of sites
+
+#pdf(file="figs/mapping/rawClover.pdf", width=8.5, height=11)
+maps::map('world', fill = TRUE, col = "white")
+points(x=clovdat$decimalLongitude, y=clovdat$decimalLatitude, col="red")
+points(x=vals$x, y=vals$y, col="navy")
+
+#pdf(file="figs/mapping/ClovQuant0.9.pdf", width=8.5, height=11)
+maps::map('world', fill = TRUE, col = "white")
+plot(redClover, col="navy", add=T)
+points(x=vals$x, y=vals$y, col="firebrick")
+
+maps::map('world', fill = TRUE, col = "white")
+plot(redClover, col="navy", add=T)
+points(y=clovdat$decimalLatitude, x=clovdat$decimalLongitude, col="red")
+```
+
+
+So now we have a list of points filtered to top 90%. Let's use these to draw hulls and find their area for each species
+```{r}
+wadmin <- geodata::world(resolution = 5, level =0, path="data/climate") #Download world administrative boundaries
+
+ccs <- geodata::country_codes() #get country codes-includes continent key
+
+tictoc::tic()
+nms <- terra::extract(wadmin, vals) #Assign each point to an admin boundary
+vals$ISO3 <- nms$GID_0 #Add that to our country data
+tictoc::toc()
+vals <- ccs %>% dplyr::select(., ISO3, continent) %>% left_join(vals, ccs, by="ISO3")
+
+```
+
+Alright, now we have each point assigned to a continent. Let's make hulls for each continent
+
+```{r}
+dat <- read.csv(file="data/GBIF/occs/datura_wrightii.csv")
+dat_old <- read.csv(file="data/GBIF/occs/datura_wrightii_old.csv")
+bienmapDwrightii <-BIEN_ranges_load_species(species = "Datura wrightii")
+
+#unzip("data/GBIF/0064287-240506114902167.zip", exdir = "data/GBIF/")
+#dat <- data.table::fread("0064287-240506114902167.csv") #Auto detects delimiter, which seems to be in a weird format from the GBIF default download process
+
+#pdf(file="figs/mapping/rawClover.pdf", width=8.5, height=11)
+maps::map('world', fill = TRUE, col = "white", main="main")
+points(x=dat$decimalLongitude, y=dat$decimalLatitude, col="red")
+
+maps::map('world', fill = TRUE, col = "white", main="main")
+points(x=vals$x, y=vals$y, col="red")
+```
+
+Adapted from Tad's MCH Code
+
+```{r}
+#'
+#' @param x latitude
+#' @param y longitude
+#' @param msk environmental mask to use, so that we don't count ocean cells
+#' @param method method for calculating hulls (case insentitive). Current acceptable values are "mch" and "alphahull"
+#' @param alphaval Alpha value used for calculating alpha hull. Defaults to 20. 
+#' 
+#' @returns geographic range size in terms of # of cells covered in environmental mask
+
+getArea <- function(x,y, equalArea=TRUE, msk, method, alphaval=20, returnHull=TRUE){
+  if(tolower(method) %in% c("mch", "alphahull")==FALSE){
+    stop("No usable method provided")
+  }
+  
+  rem <- which(is.na(x) | is.na(y))
+  if(any(rem)){
+    x <- x[-rem]
+    y <- y[-rem]
+  }
+  if(tolower(method)=="mch"){ #Use grDevices to create convex hull
+    tmp <- grDevices::chull(x,y)
+    x <- x[tmp]
+    y <- y[tmp]
+    poly <- sf::st_polygon(cbind(list(cbind(c(x, x[1]), c(y, y[1]))))) #Create a sf polygon from the mch coords
+    polyvec <- terra::vect(poly) #convert to terra vect iobject for terra::mask()
+  }
+  if(tolower(method)=="alphahull"){ #Use alphaHull to creat alpha hulls
+    tmp <-ashape(x = x, y=y, alpha = alphaval)
+    tmp <- data.frame(tmp$edges)[,c( 'x1', 'y1', 'x2', 'y2')]
+    l <- st_linestring(matrix(as.numeric(tmp[1,]), ncol=2, byrow = T))
+    for(i in 2:nrow(tmp)){
+      l <- c(l, st_linestring(matrix(as.numeric(tmp[i,]), ncol=2, byrow = T)))
+    }
+    polyvec <- vect(st_sf(geom = st_sfc(l), crs = crs(msk)) %>% st_polygonize() %>% st_collection_extract())
+  }
+  crs(polyvec) <- crs(msk)
+  tempMask <-  mask(msk, polyvec) #mask our temperature data by the polygon (this maintains 0 for oceans and whatnot)
+  df_dat <- terra::as.data.frame(tempMask[[1]], na.rm=T) #Extract the non NA values within the mask
+  cellcount <- nrow(df_dat)
+  
+  if(returnHull==FALSE){
+     return(cellcount) 
+  }
+  if(returnHull==TRUE){
+    ret <- list(count=cellcount, pgon=polyvec)
+    return(ret) 
   }
 }
 
 
-getArea(x=dat$decimalLongitude, y=dat$decimalLatitude)
+c <- getArea(x=US$x, y=US$y, msk=tempGlob, method="mch")
+maps::map('world', fill = TRUE, col = "white")
+plot(redClover, col="navy", add=T)
+points(x=US$x, y=US$y, col="red")
+plot(c$pgon, add=TRUE, col="green", alpha=0.5)
+
+
+a <- getArea(x=US$x, y=US$y, msk=tempGlob, method="alphaHull", alphaval = 20, returnHull = T)
+maps::map('world', fill = TRUE, col = "white")
+plot(a$pgon, add=TRUE, col="green")
+points(x=tempPts$x, y=tempPts$y, col="red")
+plot(alp_temp$pgon, add=TRUE, col="firebrick")
+
+
+
+```
+
+Alright, this is the operation I need to apply to each species in our data. 
+
+```{r}
+clist <- c("Asia","Europe","Africa","Oceania","North America","Antarctica","South America")
+input <- vals
+
+cmin <-clist[clist %in% unique(vals$continent)]
+
+outdf <- NULL
+outlst <- list()
+for(i in 1:length(cmin)){
+  tempPts <- input %>% dplyr::filter(., continent==cmin[i]) #Filter to a continent
+  tempPts <- dplyr::filter(tempPts, is.na(x)==FALSE)
+  if(nrow(tempPts)<10) #If a continent has less than 10 records, skip it. 
+  {
+    next
+  }
+  
+  MCH_temp <- getArea(x=tempPts$x, y=tempPts$y, msk=tempGlob, method="mch") #Calculate MCH
+  #alp_temp <- getArea(x=tempPts$x, y=tempPts$y, msk=tempGlob, method="alphahull") #Calculate alphahull
+  tempdf <- data.frame(MCH_ncell=MCH_temp$count, cont=cmin[i])
+  outdf <- rbind(outdf, tempdf)
+  outlst[[i]] <- MCH_temp$pgon
+}
+
+
+val <- terra::merge(outlst[[1]], outlst[[2]])
+
+terra::combineGeoms(outlst[[1]], outlst[[4]])
+plot(terra::combineGeoms(outlst[[1]], outlst[[3]], outlst[[4]]))
+temporary_value
+save(outlst, outdf, file="data/ranges/temp.RDA")
+
+outvec <- outlst[[1]]
+for(i in 2:7){
+  outvec <- c(outvec, outlst[[i]])
+}
+
+plot(outv)
+
+
+z <- terra::union(outlst[[1]], outlst[[2]], outlst[[3]], outlst[[4]], outlst[[5]], outlst[[6]], outlst[[7]])
+
+z <- terra::union(outlst[[1]], outlst[[4]])
+plot(terra::union(outlst[[1]], outlst[[3]]))
+
+
+pdf(file="testfile.pdf")
+maps::map('world', fill = TRUE, col = "white")
+plot(outlst[[1]], add=TRUE, col="green")
+plot(outlst[[2]], add=TRUE, col="firebrick")
+#plot(outlst[[3]], add=TRUE, col="dodgerblue")
+plot(outlst[[4]], add=T, col="pink")
+plot(outlst[[5]], add=T, col="purple")
+#plot(outlst[[6]], add=TRUE, col="orange")
+plot(outlst[[7]], add=TRUE, col="orange")
+dev.off()
+```
+
+
+```{r}
+
+ret <- vals %>% filter(., continent=="North America")
+alphapol <- getArea(x=ret$x, y=ret$y, msk=tempGlob, method="alphahull")
+MCH <- getArea(x=ret$x, y=ret$y, msk=tempGlob, method="mch")
+
+#pdf(file="figs/mapping/NA_HullComparison.pdf", width=8.5, height=11)
+maps::map('usa', fill = TRUE, col = "white", ylim=c(25, 60), xlim=c(-125, -55))
+points(ret$x, y=ret$y)
+plot(MCH$pgon, add=TRUE, col="green", alpha=0.25)
+plot(alphapol$pgon, add=TRUE, col="orange", alpha=0.25)
 ```
 
