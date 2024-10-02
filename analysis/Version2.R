@@ -240,37 +240,35 @@ list_results <- clusterApplyLB(cl, dat$flnm, function(x) {
   indcells <- cbind(indcells, Envals)
 
   summaryout <- NULL
-  for(cont in unique(ccs$continent)){
-    temp <- dplyr::filter(indcells, continent==cont)
-    if(nrow(temp)==0){ #If continent is absent, skip
-      next
-  }
-    if(nrow(temp)<10){ #Assign NAs if less than 10 occurance points in a continent
-    hull_area <- NA
-    envArea <- NA
+    for(cont in unique(ccs$continent)){
+      temp <- dplyr::filter(indcells, continent==cont)
+      if(nrow(temp)==0){ #If continent is absent, skip
+        next
     }
-  if(nrow(temp)>9){
-    hull <- try(cut_alphahull(temp, threshold=.95)) #Threshold area
-	if(class(hull)=="try-error"){
-	next	}
-    tempMask <-  mask(Clima, hull)[[1]] #Mask around oceans
-    #poly <- sf::st_polygon(cbind(list(cbind(c(xvals, xvals[1]), c(yvals, yvals[1]))))) #Create a sf polygon from the mch coords
-    #polyvec <- terra::vect(poly) #convert to terra vect iobject for terra::mask()
-    #crs(polyvec) <- crs(Clima) #assign the right crs
-    
-    pol <- terra::as.polygons(tempMask) %>% aggregate()
-    crs(pol) <- crs(hull)
-    hull_area <- st_area(st_as_sf(pol))
-    units(hull_area)$numerator <- c("km", "km") # Get Niche Area
-    
-    envhull <- try(cut_alphahull_env(temp, threshold = .95))
-     if(class(envhull)=="try-error"){
-		next }    
-envArea <- sf::st_area(envhull)
+      if(nrow(temp)<10){ #Assign NAs if less than 10 occurance points in a continent
+      hull_area <- NA
+      envArea <- NA
+      }
+    if(nrow(temp)>9){
+      hull <- try(cut_alphahull(temp, threshold=.95)) #Threshold area
+      tempMask <-  mask(Clima, hull)[[1]] #Mask around oceans
+      #poly <- sf::st_polygon(cbind(list(cbind(c(xvals, xvals[1]), c(yvals, yvals[1]))))) #Create a sf polygon from the mch coords
+      #polyvec <- terra::vect(poly) #convert to terra vect iobject for terra::mask()
+      #crs(polyvec) <- crs(Clima) #assign the right crs
+      
+      pol <- terra::as.polygons(tempMask) %>% aggregate()
+      crs(pol) <- crs(hull)
+      hull_area <- st_area(st_as_sf(pol))
+      units(hull_area)$numerator <- c("km", "km") # Get Niche Area
+    }
+    summary_temp <- data.frame(continent=cont, spArea=hull_area)
+    summaryout <- rbind(summaryout, summary_temp)
   }
-  summary_temp <- data.frame(continent=cont, envArea=envArea, spArea=hull_area)
-  summaryout <- rbind(summaryout, summary_temp)
-  }
+  envhull <- try(cut_alphahull_env(indcells, threshold = .95))
+  envArea <- NA #set a possible default
+  if(class(envhull)[1]!="try-error"){
+    envArea <- sf::st_area(envhull) }    
+  summaryout$envArea <- envArea #if you have a good hull, calculate its area
   return(summaryout)
 })
 
@@ -279,6 +277,6 @@ time <- tictoc::toc()
 
 time <- time$toc-time$tic
 
-save(list_results, file="data/ranges/Rangesizes.Rda")
+save(list_results, file="data/ranges/Rangesizes_TEST.Rda")
 save(time, file="timing.Rda")
 
