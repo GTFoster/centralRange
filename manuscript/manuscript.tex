@@ -15,6 +15,7 @@
 \usepackage{longtable}
 \usepackage{hyperref}
 \usepackage{times}
+%\usepackage{colorbox}
 
 
 \topmargin 0.0cm
@@ -35,7 +36,9 @@
 
 \author[a,*]{Grant Foster}
 
-\author[a,*]{Tad A Dallas}
+\author[a]{Tad A Dallas}
+
+\author[a]{Cleber Ten Caten}
 
 
 \affil[a]{Department of Biological Sciences, University of South Carolina, Columbia, SC, 29208 }
@@ -164,35 +167,15 @@
 
 \paragraph*{Species Ranges}
   We constructucted a global pollinator metaweb was created by querying Mangel for plant-pollinator networks. This resulted in a total of 65 globally distributed networks, and a total of 1018 individual species. For each species, we queried global occurance records from GBIF using the \texttt{rgbif} packages. Occurance points were first processed using \texttt{coordinateCleaner}; points were removed if they were present outside of the fossil record, occured within 2km of country centroids, were located on ocean, or were marked as an "introduced" individual.
-\paragraph{}To avoid overestimating species range through including spurrious or transient records in GBIF, we used a quantile approach to filter out rare occurances.We projected the remaining occurance points onto a raster of terrestrial climate at a resolution 10 minutes, where each cell was assigned a value equal to the number of occurances in that cell. We then filtered occurance cells to only include occruance cells in the top 0.9 quantile of of number of records, and used only these top 10\% of occurance localities to estimate species range.
-\paragraph{} Species ranges were calculated through both minimum convex polygon and alpha hull approaches ($\alpha = 20$). Each species range was calculated seperately for each continent according to a 7 continent model (Asia, Europe, Africa, Oceania, North America, Antartica, and South America); total species range was calculated as the total terrestrial area occupied across all continents.
 
-\begin{figure}[h!]
-  \begin{center}
-    \includegraphics[width=\textwidth]{../analysis/figs/mapping/rawClover.pdf}
-    \caption{Raw GBIF occurance points for red clover}
-    \label{fig:fig1}
-  \end{center}
-\end{figure}
+\paragraph{} To avoid overestimating species range through including spurrious or transient records in GBIF, we used a quantiled minimum convex polygon approach. Whithin each continent, we created the smallest minimum convex polygon that contains 95\% of the occurance points within that continent. Range polygons were not created for species-continent combinations with less than 10 occurence points. 
 
 
-\begin{figure}[h!]
-  \begin{center}
-    %\includegraphics[width=\textwidth]{Figures/concept.pdf}
-    \caption{A figure with caption. }
-    \label{fig:fig2}
-  \end{center}
-\end{figure}
+\paragraph{} For environmental space, we performed a principle components analysis of 18 environmental variables across the globe at a X by X resolution. The first two axes explain X\% of variation of global climate, and are primarily explained by Y VARS \ref{supplement}. We plotted each occurence point for a given species in the cartesian plane defined by these two PAC axis, and the repeated
 
 
-\begin{figure}[h!]
-  \begin{center}
-    %\includegraphics[width=\textwidth]{Figures/concept.pdf}
-    \caption{A figure with caption. }
-    \label{fig:fig3}
-  \end{center}
-\end{figure}
 
+%\paragraph{} Species ranges were calculated through both minimum convex polygon and alpha hull approaches ($\alpha = 20$). Each species range was calculated seperately for each continent according to a 7 continent model (Asia, Europe, Africa, Oceania, North America, Antartica, and South America); total species range was calculated as the total terrestrial area occupied across all continents.
 
 
 
