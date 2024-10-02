@@ -18,7 +18,6 @@ output:
 ---
 
 
-
 Let's check out Mangal and see if we can get some more points
 ```{r}
 library(rmangal)
@@ -28,18 +27,13 @@ library(ggplot2)
 library(gridExtra)
 library(rgbif)
 library(curl)
+library(tidyr)
 ```
 
 4499	4529	
 ```{r eval=FALSE}
-#mgs <- rmangal::search_datasets("pollinator")
-#mgn <- get_collection(mgs)
-
-nodes <- mgn[[1000]]
-mgn[[1]]$interactions
-mgn[[1]]$network
-
-summary(mgn)[[1]]
+mgs <- rmangal::search_datasets("pollinator")
+mgn <- rmangal::get_collection(mgs)
 
 #save(mgn, amPol, file="data/Mangel_Wol_Query.Rda")
 ```
@@ -52,8 +46,6 @@ load("data/Mangel_Wol_Query.Rda")
 #mgn is from Mangel
 
 ```{r}
-length(unique(amPol$network_name))
-length(mgn)
 
 #Creating global meta web from Mangal Data
 output <- NULL
@@ -62,9 +54,113 @@ for(i in 1:length(mgn)){
   temp_inters <- temp_inters %>% dplyr::select(., to_taxonomy.name, from_taxonomy.name, to_taxonomy.gbif, from_taxonomy.gbif, network_id) %>% unique()
   output <- rbind(output, temp_inters)
 }
-
-nrow(output) #Total number of interactions
+#nrow(output) #Total number of interactions
+#length(unique(output$network_id))
 ```
+
+
+```{r}
+temp <- output %>% dplyr::filter(., is.na(to_taxonomy.gbif)==FALSE & is.na(from_taxonomy.gbif)==FALSE) %>% unique()
+colnames(temp)
+temp$interaction <- 1
+
+
+
+
+# Expand the dataframe to include all pairwise combinations within each network - this code courtesy of chatGPT
+expanded_df <- temp %>%
+  group_by(network_id) %>%
+  nest() %>%
+  mutate(combinations = purrr::map(data, ~ {
+    plants <- unique(.x$to_taxonomy.name)
+    pollinators <- unique(.x$from_taxonomy.name)
+    expand.grid(from_taxonomy.name = pollinators, to_taxonomy.name = plants)
+  })) %>%
+  unnest(combinations) %>%
+  select(-data)
+
+res <- left_join(expanded_df, temp, by = join_by(network_id, from_taxonomy.name, to_taxonomy.name))
+res$interaction[is.na(res$interaction)==T] <- 0
+```
+
+
+```{r}
+
+counts <- res %>% dplyr::mutate(., speciesPair=paste(to_taxonomy.name, from_taxonomy.name, sep="-")) %>%
+  group_by(., speciesPair) %>%
+  dplyr::summarise(., pos=sum(interaction), tot=n(), neg=tot-pos)
+
+counts$prop <- counts$pos/counts$tot  
+
+counts <- res %>% dplyr::mutate(., speciesPair=paste(to_taxonomy.name, from_taxonomy.name, sep="-")) %>% dplyr::select(from_taxonomy.name, to_taxonomy.name, speciesPair) %>% unique() %>% left_join(counts, ., by="speciesPair")
+
+
+usable_pollen <- dplyr::filter(counts, tot>4, prop>0)
+length(unique(usable_pollen$from_taxonomy.name))
+length(unique(usable_pollen$to_taxonomy.name))
+
+length(unique(usable$Frugivore_Species))
+length(unique(usable$Plant_Species))
+
+colnames(usable_pollen)
+colnames(usable)
+```
+
+Alright, now we have a set of species that coocur in some networks but interact and cooccur in others. First let's extract our geometries for each network.
+```{r}
+geomtypes <- vector()
+for(i in 1:324){
+  geomtypes[i] <- mgn[[i]]$network$geom_type
+}
+
+
+sites <- NULL
+for(i in 1:324){
+  if(is.na(geomtypes[i])==F){
+    ret <- data.frame(network_id=mgn[[i]]$network$network_id, lon=mgn[[i]]$network$geom_lon[[1]], "lat"=mgn[[i]]$network$geom_lat[[1]], size=nrow(mgn[[i]]$nodes)) %>% dplyr::summarise(network_id=mean(network_id), lon=mean(lon), lat=mean(lat), size=mean(size))
+  sites <- rbind(sites, ret)
+  
+  mgn[[10]]$nodes
+  }
+}
+
+
+
+world <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
+
+ggplot(data = world) +
+    geom_sf()+theme_classic()+geom_point(data=sites, aes(x=lon, y=lat))
+
+plot(x=sites$lon, y=sites$lat)
+
+sites
+usable_pollen <- left_join(usable_pollen, sites, by="network_id")
+usable_pollen <- dplyr::filter(usable_pollen, is.na(lon)==F)
+
+usable_pollen <- dplyr::rename(usable_pollen, Animal_Species=from_taxonomy.name, Plant_Species=to_taxonomy.name)
+usable_pollen <- dplyr::rename(res, Animal_Species=from_taxonomy.name, Plant_Species=to_taxonomy.name) %>% select(., network_id, Animal_Species, Plant_Species, interaction) %>% unique() %>% left_join(usable_pollen, ., by=c("network_id", "Animal_Species", "Plant_Species"))
+
+
+length(unique(usable_pollen$from_taxonomy.name))
+length(unique(usable_pollen$to_taxonomy.name))
+
+
+usable_pollen$type <- "pollen"
+usable_p <- dplyr::select(usable_pollen, -network_id)
+usable_p <- dplyr::rename(usable, Animal_Species=Frugivore_Species, nAnimals=nbirds)
+usable$size <- usable$nAnimals+usable$nplants
+
+usable_p$nAnimals <- NA
+usable_p$nplants <- NA
+
+colnames(usable) %in% colnames(usable_p)
+
+testpoints <- rbind(usable, usable_p)
+?complete.cases()
+testpoints <- testpoints[complete.cases(testpoints$Latitude)==T,]
+save(testpoints, file ="data/TestPoints.Rda")
+```
+
 
 ```{r}
 metaweb <- output %>% dplyr::filter(., is.na(to_taxonomy.gbif)==FALSE & is.na(from_taxonomy.gbif)==FALSE) %>% dplyr::select(., -network_id) %>% unique()
@@ -86,12 +182,28 @@ imetaC <- delete.vertices(imeta, V(imeta)$component[V(imeta)$component!=which.ma
 
 
 
+```{r}
+colnames(metaweb)
+
+
+
+metaweb %>% dplyr::mutate(., speciesPair=paste(to_taxonomy.name, to_taxonomy.name, sep="-")) %>%
+  group_by(., speciesPair) %>%
+  dplyr::summarise(., pos=sum(interaction), tot=n(), neg=tot-pos)
+
+
+counts <- Moulatletval %>% dplyr::mutate(., speciesPair=paste(Frugivore_Species, Plant_Species, sep="-")) %>%
+  group_by(., speciesPair) %>%
+  dplyr::summarise(., pos=sum(interaction), tot=n(), neg=tot-pos)
+```
+
+
 
 ```{r}
-igraph::centralization.betweenness(imetaC)
-igraph::centralization.closeness(imetaC)
-igraph::centralization.degree(imetaC, mode="all")
-igraph::centralization.evcent(imetaC)
+#igraph::centralization.betweenness(imetaC)
+#igraph::centralization.closeness(imetaC)
+#igraph::centralization.degree(imetaC, mode="all")
+#igraph::centralization.evcent(imetaC)
 
 metaCent <- data.frame(between=igraph::centralization.betweenness(imetaC)$res,
            close=igraph::centralization.closeness(imetaC)$res,
@@ -154,6 +266,8 @@ corrplot::corrplot(spearmat, type = "lower", diag=T, main="Spearman's Correlatio
 Set up the function to query GBIF occurance points and filter some obviously problematic ones.
 ```{r}
 metaCent$node <- names(imetaC[1]) #Assign node names in metaweb to centrality measures
+#save(metaCent, file="data/MetaWebCentrality.Rda")
+
 #Maybe this will solve curl issues? Honestly not sure :(
 #curl::handle_setopt(new_handle(),http_version = 2)
 curlopts=list(http_version=2)
