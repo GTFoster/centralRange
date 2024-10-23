@@ -1,0 +1,100 @@
+---
+title: "GBIF Querying"
+output: html_document
+date: "2024-07-02"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(rgbif)
+library(dplyr)
+library(CoordinateCleaner)
+```
+
+
+```{r}
+load(file="toQuery_centralRange.Rda")
+```
+
+
+Set up the function to query GBIF occurance points and filter some obviously problematic ones.
+```{r}
+#curl::handle_setopt(new_handle(),http_version = 2)
+curlopts=list(http_version=2, maxrecs=10000)
+
+gbifQueryfilter <- function(name, maxrecs=10000){
+
+  keynum <- rgbif::name_backbone(name)$usageKey #Find the GBIF usage key for the
+  nrecs <- occ_search(taxonKey = keynum, limit=1)$meta$count
+  
+  if(nrecs > maxrecs){ #Less ideal method, using occ_search which really isn't meant for research-grade use, but is at least a first pass
+  spdat <- occ_search(taxonKey = keynum, limit=maxrecs)$data
+  
+  if(table(is.na(spdat$decimalLatitude))['FALSE']==0){ #If all records have na values in the latitude column, skip that species
+    print(paste("No records, skipping species ", i, sep=""))
+    return(NA)
+  }
+}
+    if(nrecs < maxrecs){ #Ideal download path, taken if nrecs is below the maximum
+  gbif_download <- occ_download(pred("taxonKey", keynum),format = "SIMPLE_CSV", user="riverman12", pwd="1Chicken!!!", email="fostergt@email.sc.edu")
+  
+  #curl::handle_setopt(new_handle(),http_version = 2)
+  occ_download_wait(gbif_download)
+  #curl::handle_setopt(new_handle(),http_version = 2)
+  spdat <- occ_download_get(gbif_download, path="data/GBIF/") %>%
+    occ_download_import()
+  
+  if(table(is.na(spdat$decimalLatitude))['TRUE']==nrow(spdat)){ #If all records have na values in the latitude column, skip that row4
+    print(paste("No records, skipping species ", i, sep=""))
+    return(NA)
+  }
+}
+  
+spdat <- spdat %>%
+    dplyr::filter(occurrenceStatus  == "PRESENT") %>%
+    dplyr::filter(!basisOfRecord %in% c("FOSSIL_SPECIMEN")) %>% #Remove fossils
+    CoordinateCleaner::cc_cen( #Remove records within 2k buffer of country centroids
+    lon = "decimalLongitude", 
+    lat = "decimalLatitude", 
+    buffer = 2000, # radius of circle around centroid to look for centroids
+    value = "clean",
+    test="both")  %>% 
+    cc_sea( #Remove oceanic records
+  lon = "decimalLongitude",
+  lat = "decimalLatitude"
+  )# %>%
+  #dplyr::filter(., establishmentMeans != "introduced") #Remove known introduced  spp
+
+occs <- dplyr::select(spdat, genus, species,scientificName, decimalLatitude, decimalLongitude) %>% unique()
+
+if(nrecs < maxrecs){ #Name file normally is not at max records
+  filname <- name %>% tolower() %>% gsub(pattern=" ", replacement="_",.) %>%
+    paste("data/GBIF/occs/", ., ".csv", sep="")
+}
+
+
+if(nrecs > maxrecs){ #Name file normally is not at max records
+  filname <- name %>% tolower() %>% gsub(pattern=" ", replacement="_",.) %>%
+    paste("data/GBIF/occs/shortened/", ., ".csv", sep="")
+}
+
+write.csv(occs, file=filname, row.names = FALSE)
+}
+```
+
+
+Apply it for each node species
+```{r}
+for(i in 1:length(toQuery)){
+  starttime <- Sys.time()
+  gbifQueryfilter(toQuery[i])
+  print(paste("Completed ", i, "out of ", length(toQuery)))
+  print(Sys.time()-starttime)
+}
+```
+
+
+
