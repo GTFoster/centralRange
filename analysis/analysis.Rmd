@@ -18,198 +18,195 @@ output:
 ---
 
 
-Let's check out Mangal and see if we can get some more points
 ```{r}
-library(rmangal)
 library(igraph)
-library(dplyr)
-library(ggplot2)
+#library(dplyr)
+#library(ggplot2)
 library(gridExtra)
 library(rgbif)
 library(curl)
-library(tidyr)
+#library(tidyr)
+library(jsonlite)
+library(tidyverse)
+library(taxize)
 ```
 
-4499	4529	
-```{r eval=FALSE}
-mgs <- rmangal::search_datasets("pollinator")
-mgn <- rmangal::get_collection(mgs)
+Let's start with querying WOL for plant-pollinator datasets. 
 
-#save(mgn, amPol, file="data/Mangel_Wol_Query.Rda")
+
+Querying the web of life API. 
+Tutorial for how to do this found here: https://www.web-of-life.es/tutorial/session-download-data.html
+```{r}
+# define the base url
+base_url <- "https://www.web-of-life.es/"   
+json_url2 <- paste0(base_url,"get_networks.php?interaction_type=Pollination") 
+
+WolPols <- jsonlite::fromJSON(json_url2)
+WolMeta <- read.csv(paste0(base_url,"get_network_info.php")) %>%dplyr::filter(., network_type%in%"Pollination")
+length(unique(WolPols$network_name)) # 174 Networks
+
+WolMeta <- read.csv(paste0(base_url,"get_network_info.php"))
+WolMeta <- WolMeta %>% dplyr::filter(., network_type%in%"Pollination") #Make sure we have only pollination
+WolMeta <- WolMeta %>% 
+  #dplyr::select(., network_name, region, latitude, longitude) %>% 
+  left_join(WolPols, ., by="network_name")
 ```
+
+Let's do some double checking to 
+1) Separate vertebrate from invertebrate pollination networks
+%2) Make different sources are correctly harmonized #Turns out these are the new deal
+
+I was first going check every taxa with taxize, but turns out this actually takes a long time to run with so many taxa. Instead, I looked at the original papers for the 74 publications included in these data. Slow, but still faster than taxize. I load in the key I created for that below. 
 
 ```{r}
-load("data/Mangel_Wol_Query.Rda")
+studykey <- read.csv(file="studykey.csv")
+WolMeta <- left_join(WolMeta, studykey, by=c("author", "reference"))
+
+WolMeta<- dplyr::filter(WolMeta, grepl("Unidentified", species2, ignore.case=F)==F) #remove unidentified
+WolMeta<- dplyr::filter(WolMeta, grepl(" sp[1-9]+", species2, ignore.case=F)==F) #remove those with polls identified to genera only
+WolMeta<- dplyr::filter(WolMeta, grepl(" sp[1-9]+", species1, ignore.case=F)==F) #remove those plants identified to genera only
+#Interesting to evaluate whether to do this on a local level, but necessary with global metaweb (sp1 in one network may be sp2 in another, etc)
+
+mixedwebs <- dplyr::filter(WolMeta, Taxa=="Mixed")
+Insectweb <- dplyr::filter(WolMeta, Taxa=="Insecta")
+Birdweb <- dplyr::filter(WolMeta, Taxa=="Aves")
+
+Insectweb <- dplyr::filter(mixedwebs, grepl(c("Apis"), species2)==T | grepl(c("Ornidia"), species2)==T | grepl(c("Bombus"), species2)==T | grepl(c("Musca"), species2)==T ) %>% rbind(Insectweb, .) #Add in some common insect genera from mixed webs
+
+mixedwebs <- dplyr::filter(mixedwebs, grepl(c("Apis"), species2)==F & grepl(c("Ornidia"), species2)==F & grepl(c("Bombus"), species2)==F & grepl(c("Musca"), species2)==F ) #Remove these from the to-query group
+
+
+mixedord <- tax_name(unique(mixedwebs$species2), get = "class", db = "ncbi")
+
+missing <- dplyr::filter(mixedord, is.na(class)==T)
+missing$query[missing$query=="Politmus milleri"] <- "Polytmus milleri" #Mispelled bird
+missing$query[missing$query=="Physiphoa azurea"] <- "Physiphora azurea " #Mispelled fly
+
+missing$gen <- gsub( " .*$", "", missing$query) 
+gens <- data.frame(gen=missing$gen, class=NA) %>% unique()
+gens <- dplyr::filter(gens, gen %in% c("Clamirius", "Eurymetopun")==F) #Can't find these
+
+gens$class[gens$gen%in%c("Amazilia", "Carduelis", "Foudia", "Polytmus")] <- "Aves" #The birds in the list
+gens$class[is.na(gens$class)==T] <- "Insect" #Everything left is an insect 
+
+missing <- missing %>% dplyr::select(., -class) %>% left_join(., gens, by="gen") %>% na.omit() #Grab the missing classes
+
+Birdweb  <- dplyr::filter(mixedwebs, species2 %in% missing$query[missing$class=="Aves"]) %>%
+  rbind(Birdweb,.)
+Insectweb <- dplyr::filter(mixedwebs, species2 %in% missing$query[missing$class=="Insecta"]) %>%
+  rbind(Insectweb,.)
+
 ```
 
-#amPol is from WOL
-#mgn is from Mangel
-
+Now that we've done our filtering, let's check out our two created metawebs
 ```{r}
+InsectMeta <- dplyr::select(Insectweb, species1, species2) %>% unique()
+imeta <- igraph::graph_from_data_frame(InsectMeta, directed=F) #Create idgraph object
 
-#Creating global meta web from Mangal Data
-output <- NULL
-for(i in 1:length(mgn)){
-  temp_inters <- as_long_data_frame(igraph::as.igraph(mgn[[i]]))
-  temp_inters <- temp_inters %>% dplyr::select(., to_taxonomy.name, from_taxonomy.name, to_taxonomy.gbif, from_taxonomy.gbif, network_id) %>% unique()
-  output <- rbind(output, temp_inters)
-}
-#nrow(output) #Total number of interactions
-#length(unique(output$network_id))
+
+BirdMeta <- dplyr::select(Birdweb, species1, species2) %>% unique()
+bmeta <- igraph::graph_from_data_frame(BirdMeta, directed=F) #Create idgraph object
 ```
 
 
-```{r}
-temp <- output %>% dplyr::filter(., is.na(to_taxonomy.gbif)==FALSE & is.na(from_taxonomy.gbif)==FALSE) %>% unique()
-colnames(temp)
-temp$interaction <- 1
-
-
-
-
-# Expand the dataframe to include all pairwise combinations within each network - this code courtesy of chatGPT
-expanded_df <- temp %>%
-  group_by(network_id) %>%
-  nest() %>%
-  mutate(combinations = purrr::map(data, ~ {
-    plants <- unique(.x$to_taxonomy.name)
-    pollinators <- unique(.x$from_taxonomy.name)
-    expand.grid(from_taxonomy.name = pollinators, to_taxonomy.name = plants)
-  })) %>%
-  unnest(combinations) %>%
-  select(-data)
-
-res <- left_join(expanded_df, temp, by = join_by(network_id, from_taxonomy.name, to_taxonomy.name))
-res$interaction[is.na(res$interaction)==T] <- 0
-```
-
-
-```{r}
-
-counts <- res %>% dplyr::mutate(., speciesPair=paste(to_taxonomy.name, from_taxonomy.name, sep="-")) %>%
-  group_by(., speciesPair) %>%
-  dplyr::summarise(., pos=sum(interaction), tot=n(), neg=tot-pos)
-
-counts$prop <- counts$pos/counts$tot  
-
-counts <- res %>% dplyr::mutate(., speciesPair=paste(to_taxonomy.name, from_taxonomy.name, sep="-")) %>% dplyr::select(from_taxonomy.name, to_taxonomy.name, speciesPair) %>% unique() %>% left_join(counts, ., by="speciesPair")
-
-
-usable_pollen <- dplyr::filter(counts, tot>4, prop>0)
-length(unique(usable_pollen$from_taxonomy.name))
-length(unique(usable_pollen$to_taxonomy.name))
-
-length(unique(usable$Frugivore_Species))
-length(unique(usable$Plant_Species))
-
-colnames(usable_pollen)
-colnames(usable)
-```
-
-Alright, now we have a set of species that coocur in some networks but interact and cooccur in others. First let's extract our geometries for each network.
-```{r}
-geomtypes <- vector()
-for(i in 1:324){
-  geomtypes[i] <- mgn[[i]]$network$geom_type
-}
-
-
-sites <- NULL
-for(i in 1:324){
-  if(is.na(geomtypes[i])==F){
-    ret <- data.frame(network_id=mgn[[i]]$network$network_id, lon=mgn[[i]]$network$geom_lon[[1]], "lat"=mgn[[i]]$network$geom_lat[[1]], size=nrow(mgn[[i]]$nodes)) %>% dplyr::summarise(network_id=mean(network_id), lon=mean(lon), lat=mean(lat), size=mean(size))
-  sites <- rbind(sites, ret)
-  
-  mgn[[10]]$nodes
-  }
-}
-
-
-
-world <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
-
-ggplot(data = world) +
-    geom_sf()+theme_classic()+geom_point(data=sites, aes(x=lon, y=lat))
-
-plot(x=sites$lon, y=sites$lat)
-
-sites
-usable_pollen <- left_join(usable_pollen, sites, by="network_id")
-usable_pollen <- dplyr::filter(usable_pollen, is.na(lon)==F)
-
-usable_pollen <- dplyr::rename(usable_pollen, Animal_Species=from_taxonomy.name, Plant_Species=to_taxonomy.name)
-usable_pollen <- dplyr::rename(res, Animal_Species=from_taxonomy.name, Plant_Species=to_taxonomy.name) %>% select(., network_id, Animal_Species, Plant_Species, interaction) %>% unique() %>% left_join(usable_pollen, ., by=c("network_id", "Animal_Species", "Plant_Species"))
-
-
-length(unique(usable_pollen$from_taxonomy.name))
-length(unique(usable_pollen$to_taxonomy.name))
-
-
-usable_pollen$type <- "pollen"
-usable_p <- dplyr::select(usable_pollen, -network_id)
-usable_p <- dplyr::rename(usable, Animal_Species=Frugivore_Species, nAnimals=nbirds)
-usable$size <- usable$nAnimals+usable$nplants
-
-usable_p$nAnimals <- NA
-usable_p$nplants <- NA
-
-colnames(usable) %in% colnames(usable_p)
-
-testpoints <- rbind(usable, usable_p)
-?complete.cases()
-testpoints <- testpoints[complete.cases(testpoints$Latitude)==T,]
-save(testpoints, file ="data/TestPoints.Rda")
-```
-
-
-```{r}
-metaweb <- output %>% dplyr::filter(., is.na(to_taxonomy.gbif)==FALSE & is.na(from_taxonomy.gbif)==FALSE) %>% dplyr::select(., -network_id) %>% unique()
-class(metaweb)
-rownames(metaweb) <- 1:nrow(metaweb)
-
-imeta <- igraph::graph_from_data_frame(metaweb, directed=F) #Create idgraph object
-```
-
-Let's drop nodes from disconnected components
+Need to remove species not located in the main component of the metaweb (otherwise can't compute centrality)
 ```{r}
 V(imeta)$component <- components(imeta)$membership
-components(imeta)$csize #Largest component has 959 nodes; the rest are orders of magnitude smaller
+components(imeta)$csize #Largest component has 6237 nodes; the rest are isolated pairs
+imeta <- delete.vertices(imeta, V(imeta)$component[V(imeta)$component!=which.max(components(imeta)$csize)]) #Remove vertices that aren't included in the largest component
+
+V(bmeta)$component <- components(bmeta)$membership
+components(bmeta)$csize #Largest component has 721 nodes; the rest are isolated pairs
+bmeta <- delete.vertices(bmeta, V(bmeta)$component[V(bmeta)$component!=which.max(components(bmeta)$csize)]) #Remove vertices that aren't included in the largest component
+```
+
+
+Let's calculate our measures of species centrality in the metaweb
+
+```{r}
+imetaCent <- data.frame(between=igraph::centralization.betweenness(imeta)$res,
+           close=igraph::centralization.closeness(imeta)$res,
+           deg=igraph::centralization.degree(imeta, mode="all")$res,
+           eig=igraph::centralization.evcent(imeta)$vector,
+           node=V(imeta)$name)
+
+bmetaCent <- data.frame(between=igraph::centralization.betweenness(bmeta)$res,
+           close=igraph::centralization.closeness(bmeta)$res,
+           deg=igraph::centralization.degree(bmeta, mode="all")$res,
+           eig=igraph::centralization.evcent(bmeta)$vector,
+           node=V(bmeta)$name)
+
+## Use n equally spaced breaks to assign each value to n-1 equal sized bins 
+ii <- cut(bmetaCent$eig, breaks = seq(min(bmetaCent$eig, na.rm=T), max(bmetaCent$eig, na.rm=T), len = 100), 
+          include.lowest = TRUE)
+
+## Use bin indices, ii, to select color from vector of n-1 equally spaced colors
+V(bmeta)$color <- colorRampPalette(c("lightblue", "blue"))(99)[ii]
+
+
+plot(bmeta, vertex.label=NA, layout=layout_nicely)
+```
 
 
 
-imetaC <- delete.vertices(imeta, V(imeta)$component[V(imeta)$component!=which.max(components(imeta)$csize)]) #Removevertices that aren't included in the largest component
+
+```{r}
+overlaps <- dplyr::filter(bmetaCent, node %in% imetaCent$node)
+
+overlaps <- imetaCent %>% dplyr::select(node, deg, eig, close) %>% dplyr::rename(., insect_deg=deg, insect_eig=eig, insect_close=close) %>% left_join(overlaps, ., by="node")
+
+plot(overlaps$eig, overlaps$insect_eig, xlab="Eigenvalue Centrality in Bird Network", ylab="Eigenvalue Centrality in Insect Network")
+cor.test(overlaps$eig, overlaps$insect_eig)
+plot(overlaps$deg, overlaps$insect_deg, xlab="Degree in Bird Network", ylab="Degree in Insect Network")
+cor.test(overlaps$deg, overlaps$insect_deg)
+
+plot(overlaps$close, overlaps$insect_close, xlab="Closeness in Bird Network", ylab="Closeness in Insect Network")
+cor.test(overlaps$close, overlaps$insect_close)
+```
+
+
+```{r}
+sp <- unique(imetaCent$node, bmetaCent$node)
+length(sp)
 ```
 
 
 
 ```{r}
-colnames(metaweb)
+fls <- list.files(path="data/GBIF/occs/") #Grab all the filenames in our occurence data dir
+nms <- gsub("_", " ", fls) %>% gsub(".csv", "", .) #Refit to match data
+nms <- paste(toupper(substr(nms, 1,1)), substr(nms,2,100), sep="")
 
-
-
-metaweb %>% dplyr::mutate(., speciesPair=paste(to_taxonomy.name, to_taxonomy.name, sep="-")) %>%
-  group_by(., speciesPair) %>%
-  dplyr::summarise(., pos=sum(interaction), tot=n(), neg=tot-pos)
-
-
-counts <- Moulatletval %>% dplyr::mutate(., speciesPair=paste(Frugivore_Species, Plant_Species, sep="-")) %>%
-  group_by(., speciesPair) %>%
-  dplyr::summarise(., pos=sum(interaction), tot=n(), neg=tot-pos)
+table(nms%in% c(BirdMeta$species1, BirdMeta$species2, InsectMeta$species1, InsectMeta$species2))
 ```
-
-
 
 ```{r}
-#igraph::centralization.betweenness(imetaC)
-#igraph::centralization.closeness(imetaC)
-#igraph::centralization.degree(imetaC, mode="all")
-#igraph::centralization.evcent(imetaC)
+library(gbifdb)
 
-metaCent <- data.frame(between=igraph::centralization.betweenness(imetaC)$res,
-           close=igraph::centralization.closeness(imetaC)$res,
-           deg=igraph::centralization.degree(imetaC, mode="all")$res,
-           eig=igraph::centralization.evcent(imetaC)$vector)
+# the below folder will change depending on when you download the gbif data using the above command
+gbif <- gbif_local(dir='../../../GBIF_local/occurrence/2024-04-01')
+#gbif_local(dir='~/GBIF_local/occurrence/2024-04-01')
+# dbDisconnect()
+
+
+gbifdb::gbif_version(gbif)
+
+
+
+occs <- gbif |> 
+  #group_by(species) |> 
+  filter(species == "Eupatorium macrocephalum") |> 
+	#filter(!is.na(decimallatitude)) |> 
+	#count(class) |> 
+	collect()
+
+occs2 <- as.data.frame(dplyr::filter(occs, n > 100)) 
+
+record <- rgbif::occ_search(scientificName = name, hasGeospatialIssue=FALSE)
 ```
+
+
+##START HERE: UPDATING RANGE SIZING QUERY
 
 ```{r}
 pear_mat <- cor(metaCent, method="pearson", use="complete.obs")
@@ -308,11 +305,6 @@ write.csv(occs, file=filname, row.names = FALSE)
 }
 ```
 
-Apply it for each node species
-```{r}
-for(i in 1:length(metaCent$node)){
-  gbifQueryfilter(metaCent$node[i])
-}
-```
+
 
 
