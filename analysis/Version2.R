@@ -215,7 +215,7 @@ packed_Clima <- terra::wrap(Clima)
 packed_wadminrast <- terra::wrap(wadminrast)
 
 
-cl <- makeCluster(7, outfile="")
+cl <- makeCluster(4, outfile="")
 
 clusterExport(cl, c("dat", "packed_Clima", "packed_wadminrast", "ccs", "env", "makefuncs", "cut_alphahull", "cut_alphahull_env"))
 
@@ -277,6 +277,6 @@ time <- tictoc::toc()
 
 time <- time$toc-time$tic
 
-save(list_results, file="data/ranges/Rangesizes_TEST.Rda")
+save(list_results, file="data/ranges/Rangesizes_Real.Rda")
 save(time, file="timing.Rda")
 
