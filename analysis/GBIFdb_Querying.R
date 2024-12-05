@@ -9,10 +9,20 @@ gbif <- gbif_local(dir='/home/shared/occurrence/2024-04-01') #Tell R where to fi
 
 nmlist <- data.frame(Name=NA, ID=1, NROW=0) #Start an empty df to keep track of query progress
 
-for(name in unique(unlist(toQuery))[886:length(toQuery)]){ #For each species, starting at last break
+for(name in unique(unlist(toQuery))[1044:length(toQuery)]){ #For each species, starting at last break
 spdat <- gbif |> 
   filter(species == name) |> 
   collect() #Grab all occurence records for the species of interest and call is spdat
+
+spdat <- dplyr::filter(spdat, is.na(decimallongitude)==F)
+
+
+if(nrow(spdat)<1){
+tempcheck <- data.frame(Name=name, ID=max(nmlist$ID)+1, NROW=try(nrow(spdat)+1084))
+nmlist <- rbind(nmlist, tempcheck)
+write.csv(nmlist, file="Progresscheck3.csv")
+next
+}
 
 filname <- name %>% tolower() %>% gsub(pattern=" ", replacement="_",.) %>%
   paste("data/GBIF/occs/", ., ".csv", sep="") #Create a filename
@@ -35,8 +45,8 @@ spdat <- spdat %>% #Do some data cleaning
 occs <- dplyr::select(spdat, genus, species,scientificname, decimallatitude, decimallongitude, elevation, day, month, year, taxonkey) %>% unique()
 write.csv(occs, file=filname, row.names = FALSE)
 
-tempcheck <- data.frame(Name=name, ID=max(nmlist$ID)+1, NROW=try(nrow(occs)))
+tempcheck <- data.frame(Name=name, ID=max(nmlist$ID)+1, NROW=try(nrow(occs)+1084))
 nmlist <- rbind(nmlist, tempcheck)
-
-write.csv(nmlist, file="Progresscheck.csv")
+gc()
+write.csv(nmlist, file="Progresscheck3.csv")
 }
