@@ -30,6 +30,7 @@ library(jsonlite)
 library(tidyverse)
 library(taxize)
 library(vegan)
+library(randomForest)
 ```
 
 Let's start with querying WOL for plant-pollinator datasets. 
@@ -96,8 +97,19 @@ Birdweb  <- dplyr::filter(mixedwebs, species2 %in% missing$query[missing$class==
   rbind(Birdweb,.)
 Insectweb <- dplyr::filter(mixedwebs, species2 %in% missing$query[missing$class=="Insecta"]) %>%
   rbind(Insectweb,.)
+```
+Some preliminary network stats
+```{r}
+ WolMeta %>%
+  group_by(latitude, longitude) %>%
+  summarise(site_index = cur_group_id()) %>%
+  ungroup()
+ 
+length(c(unique(WolMeta$species1), unique(WolMeta$species2)))
 
 ```
+
+
 
 Now that we've done our filtering, let's check out our two created metawebs
 ```{r, eval=F}
@@ -255,21 +267,26 @@ bmetaCent %>% dplyr::filter(., close<0.5) %>%
 hist(scale(log(imetaCent$envarea)))
 ```
 
-
+Prediction: A linear model approach
 ```{r}
 imetaCentmodat <- imetaCent
-imetaCentmodat <- dplyr::filter(imetaCentmodat, close<0.5)
-
-inmod <- lm(close~scale(log(envarea))+as.factor(type)+as.factor(type)*scale(log(envarea))+scale(log(globkm))+as.factor(type)*scale(log(globkm)), data=imetaCentmodat)
+imetaCentmodat <- dplyr::filter(imetaCentmodat, close<0.5) #Filter out outliers
+inmod <- lm(close~scale(log(envarea))+as.factor(type)+scale(log(globkm)), data=imetaCentmodat)
 plot(inmod)
 summary(inmod)
 
+cor.test(scale(log(imetaCentmodat$envarea)), scale(log(imetaCentmodat$globkm)))
+car::vif(inmod)
+
 bmetaCentmodat <- bmetaCent
 bmetaCentmodat <- dplyr::filter(bmetaCentmodat, close<0.5)
-bmod <- lm(close~scale(log(envarea))+as.factor(type)+as.factor(type)*scale(log(envarea))+scale(log(globkm))+as.factor(type)*scale(log(globkm)), data=bmetaCentmodat)
+#bmod <- lm(close~scale(log(envarea))+as.factor(type)+as.factor(type)*scale(log(envarea))+scale(log(globkm))+as.factor(type)*scale(log(globkm)), data=bmetaCentmodat)
+bmod <- lm(close~scale(log(envarea))+as.factor(type)+scale(log(globkm)), data=bmetaCentmodat)
 summary(bmod)
 plot(bmod)
 
+cor.test(scale(log(bmetaCentmodat$envarea)), scale(log(bmetaCentmodat$globkm)))
+car::vif(bmod)
 ```
 
 ```{r}
@@ -352,6 +369,7 @@ Insectweb <- Insectweb %>%
 
 length(unique(Insectweb$network_name))
 length(unique(Insectweb$site_index))
+length(unique(Birdweb$site_index))
 ```
  
  Let's calculate centrality on a local level for each node of the networks that make up our metawebs. 
@@ -381,7 +399,7 @@ for(i in 1:length(unique(Insectweb$site_index))){
                site_index=i)
     #Now we have our actual metric, but we need a null model approach
     ## Perform z-score standardization
-    rndout <- NULL
+     rndout <- NULL
     nullsetup <- nullmodel(table(temp), method = "quasiswap")
     out <- simulate(nullsetup, nsim=1000) #Set up our null model object (see vegan vignette)
     for(simID in 1:1000){
@@ -462,7 +480,7 @@ for(i in 1:length(unique(Birdweb$site_index))){ #Iterate over each local network
 #save(localbCent, localiCent, file="data/z_localCent.RDA")
 ```
 
-
+Analyzing the output of our z-transformation of local centrality measures. 
 ```{r}
 load(file="data/z_localCent.RDA")
 
@@ -503,7 +521,204 @@ bmetaCent %>% ggplot(., aes(x=localmeanclose.z,y=localmeanclose, col=log(nsites)
   ylab("Mean Local Closeness (Non-transformed)")+theme_classic()
 
 ```
- 
+
+## Variability across local sites
+Let's look at the variance of the species with the most different observations in local networks. 
+First, we'll just plot the raw centrality metrics
+```{r}
+ireps <-localiCent[localiCent$node%in%dplyr::filter(localiz, nsites>9)$node,] %>% #Just grab replicates from species
+  group_by(., node, site_index) %>% #group by species and site (since we're interested in variance across sites)
+  dplyr::summarise(., localmeanclose=mean(close), localmeanclose.z=mean(z.close, na.rm=T)) %>% #Find mean of each nodes average local centralities, both z-tranformed and not
+  ungroup() %>% 
+  left_join(., dplyr::select(localiz, node, nsites), by="node") %>%
+  ungroup()
+
+breps <-localbCent[localbCent$node%in%dplyr::filter(localbz, nsites>6)$node,] %>% #Just grab replicates from species
+  group_by(., node, site_index) %>% #group by species and site (since we're interested in variance across sites)
+  dplyr::summarise(., localmeanclose=mean(close), localmeanclose.z=mean(z.close, na.rm=T)) %>% #Find mean of each nodes average local centralities, both z-tranformed and not
+  ungroup() %>% 
+  left_join(., dplyr::select(localbz, node, nsites), by="node") %>%
+  ungroup()
+
+breps <- dplyr::select(bmetaCent, node, close) %>% unique() %>% left_join(breps, ., by="node")
+ireps <- dplyr::select(imetaCent, node, close) %>% unique() %>% left_join(ireps, ., by="node")
+
+brep <- ggplot(aes(x=factor(node, levels=unique(node[order(nsites, decreasing = T)])), y=localmeanclose,
+           fill=nsites), data=breps)+
+  geom_boxplot(outlier.shape = NA)+ 
+  scale_fill_continuous(name = "Number of Sites")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 305, vjust = 0.5, hjust=0))+
+  ylab("Local Closeness")+
+  xlab("Species")+
+  geom_point(aes(x=factor(node, levels=unique(node[order(nsites, decreasing = T)])), y=localmeanclose), size=1.5)+
+  geom_point(aes(x=factor(node, levels=unique(node[order(nsites, decreasing = T)])), y=close), col="red")+ylim(0,1)
+
+irep <- ggplot(aes(x=factor(node, levels=unique(node[order(nsites, decreasing = T)])), y=localmeanclose,
+           fill=log(nsites)), data=ireps)+
+  geom_boxplot(outlier.shape = NA)+ 
+  scale_fill_continuous(name = "Log Number of Sites")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 305, vjust = 0.5, hjust=0))+
+  ylab("Local Closeness")+
+  xlab("Species")+
+  geom_point(aes(x=factor(node, levels=unique(node[order(nsites, decreasing = T)])), y=localmeanclose), size=0.5)+
+  geom_point(aes(x=factor(node, levels=unique(node[order(nsites, decreasing = T)])), y=close), col="red")+
+  theme(axis.text.x=element_text(size=6))+ylim(0,1)
+```
+
+
+Now let's do the same with the standardized metrics.
+
+```{r}
+brep.z <- ggplot(aes(x=factor(node, levels=unique(node[order(nsites, decreasing = T)])), y=localmeanclose.z,
+           fill=nsites), data=breps)+
+  geom_boxplot(outlier.shape = NA)+ 
+  scale_fill_continuous(name = "Number of Sites")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 305, vjust = 0.5, hjust=0))+
+  ylab("Local Closeness (Z-transformed)")+
+  xlab("Species")+
+  geom_point(aes(x=factor(node, levels=unique(node[order(nsites, decreasing = T)])), y=localmeanclose.z), size=1.5)+ylim(0,1)
+
+irep.z <- ggplot(aes(x=factor(node, levels=unique(node[order(nsites, decreasing = T)])), y=localmeanclose.z,
+           fill=log(nsites)), data=ireps)+
+  geom_boxplot(outlier.shape = NA)+ 
+  scale_fill_continuous(name = "Log Number of Sites")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 305, vjust = 0.5, hjust=0))+
+  ylab("Local Closeness (Z-transformed)")+
+  xlab("Species")+
+  geom_point(aes(x=factor(node, levels=unique(node[order(nsites, decreasing = T)])), y=localmeanclose.z), size=0.5)+
+  theme(axis.text.x=element_text(size=6))+ylim(0,1)
+```
+Plotting variation of local centrality
+```{r}
+#pdf(file="figs/localCentralityVariation_2.pdf", width=11, height=8.5)
+grid.arrange(brep, brep.z, irep, irep.z, nrow=2)
+#dev.off()
+```
+
+Effects of range size on mean local centralirt
+
+```{r}
+composite_local <- rbind(imetaCent, bmetaCent)
+
+geop1_local <- composite_local %>% #dplyr::filter(., close<0.5) %>% 
+  ggplot(., aes(x=scale(log(globkm)), y=localmeanclose.z, col=net))+
+  geom_point(alpha=0.5)+
+  geom_smooth(method="lm")+
+  facet_wrap(~type, labeller = labeller(type = c("Floral Visitors", "Plants")))+
+  theme_classic()+
+  xlab("Scaled Log Geographic Area")+
+  ylab("Mean Z-Transformed Local Closeness")+guides(col=guide_legend(title="MetaNetwork"))+
+  scale_color_manual(labels = c("Avian-Plant", "Insect-Plant"), values = c("#0F882C", "dodgerblue"))+
+  theme(legend.position=c(0.11,.81), guide_legend(override.aes=list(fill=NA)))
+#envp1 <- 
+
+envp1_local <- composite_local %>% #dplyr::filter(., close<0.5) %>% 
+  ggplot(., aes(x=scale(log(envarea)), y=localmeanclose.z, col=net))+
+  geom_point(alpha=0.5)+
+  geom_smooth(method="lm")+
+  facet_wrap(~type)+
+  theme_classic()+
+  xlab("Scaled Log Environmental Area")+
+  ylab("Mean Z-Transformed Local Closeness")+guides(col="none")+
+  scale_color_manual(labels = c("Avian-Plant", "Insect-Plant"), values = c("#0F882C", "dodgerblue"))
+```
+
+
+Fig of the effect of local centrality 
+```{r}
+#pdf(file="figs/metaweb_area_scaling_local.pdf", width=6, height=6)
+grid.arrange(geop1_local, envp1_local, nrow=2)
+#dev.off()
+```
+
+
+
+```{r}
+imetaCentmodat <- imetaCent
+imetaCentmodat <- dplyr::filter(imetaCentmodat, close<0.5) #Filter out outliers
+inmod.z <- lm(localmeanclose.z
+~scale(log(envarea))+as.factor(type)+scale(log(globkm)), data=imetaCentmodat)
+plot(inmod.z)
+summary(inmod.z)
+
+cor.test(scale(log(imetaCentmodat$envarea)), scale(log(imetaCentmodat$globkm)))
+car::vif(inmod.z)
+
+bmetaCentmodat <- bmetaCent
+bmetaCentmodat <- dplyr::filter(bmetaCentmodat, close<0.5)
+#bmod <- lm(close~scale(log(envarea))+as.factor(type)+as.factor(type)*scale(log(envarea))+scale(log(globkm))+as.factor(type)*scale(log(globkm)), data=bmetaCentmodat)
+bmod.z <- lm(localmeanclose.z~scale(log(envarea))+as.factor(type)+scale(log(globkm)), data=bmetaCentmodat)
+summary(bmod.z)
+plot(bmod.z)
+
+cor.test(scale(log(bmetaCentmodat$envarea)), scale(log(bmetaCentmodat$globkm)))
+car::vif(bmod.z)
+```
+
+
+Comparing variable importance: A random forest approach
+```{r}
+localirf <- imetaCent %>% dplyr::select(envarea, globkm, type, nsites, localmeanclose.z) %>% na.omit() %>% randomForest::randomForest(localmeanclose.z
+ ~., data=., ntree=10000, importance = T)
+
+metairf <- imetaCent %>% dplyr::select(envarea, globkm, type, nsites, close) %>% na.omit() %>% randomForest::randomForest(close
+ ~., data=., ntree=10000, importance = T)
+
+localbrf <- bmetaCent %>% dplyr::select(envarea, globkm, type, nsites, localmeanclose.z) %>% na.omit() %>% randomForest::randomForest(localmeanclose.z
+ ~., data=., ntree=10000, importance = T)
+
+metabrf <- bmetaCent %>% dplyr::select(envarea, globkm, type, nsites, close) %>% na.omit() %>% randomForest::randomForest(close
+ ~., data=., ntree=10000, importance = T)
+
+imp <- data.frame(vars=c("envarea","globkm","type","nsites"), 
+locinsectimp=localirf$importance[,"%IncMSE"], locinsectvar=localirf$importanceSD,
+metainsectimp=metairf$importance[,"%IncMSE"], metainsectvar=metairf$importanceSD,
+locbirdimp=localbrf$importance[,"%IncMSE"], locbirdvar=localbrf$importanceSD,
+metabirdimp=metabrf$importance[,"%IncMSE"], metabirdvar=localbrf$importanceSD
+)
+
+imp_long <- data.frame(vars=rep(c("envarea","globkm","type","nsites"),4), 
+           model=c(rep("insect_local", 4), rep("insect_meta", 4), rep("bird_local", 4), rep("bird_meta", 4)),
+            importance=c(localirf$importance[,"%IncMSE"], metairf$importance[,"%IncMSE"], localbrf$importance[,"%IncMSE"], metabrf$importance[,"%IncMSE"]),
+           sd=c(localirf$importanceSD, metairf$importanceSD, localbrf$importanceSD, metabrf$importanceSD))
+           
+imp_long <- imp_long %>% group_by(., model) %>% 
+  dplyr::mutate(., relImportance=importance/max(importance), relSD=sd/max(importance)) %>%
+  ungroup()
+
+
+pdf(file="figs/RF_importance.pdf", width=8, height=8)
+ggplot(data=imp_long, aes(y=vars, x=relImportance, fill=model))+
+  geom_col(position = position_dodge(), width = 0.9)+
+  theme_classic()+
+  geom_errorbar(aes(xmin=relImportance-relSD, xmax=relImportance+relSD), width=.1,
+                 position=position_dodge(.9))+
+  scale_fill_manual(values = c("bird_local" = alpha("#0F882C", 0.5),
+                                "bird_meta" = "#0F882C",
+                                "insect_local" = alpha("dodgerblue", 0.5),
+                                "insect_meta" = "dodgerblue"),
+                    labels = c(
+      "bird_local" = "Local Centrality (Avian)",
+      "bird_meta" = "Metaweb Centrality (Avian)",
+      "insect_local" = "Local Centrality (Insect)",
+      "insect_meta" = "Metaweb Centrality (Insect)"
+    ))+
+  xlab("Relative Importance")+
+  ylab("Variable")+
+  scale_y_discrete(labels = c(
+    "envarea" = "Environmental Range",
+    "globkm" = "Geographic Range",
+    "type" = "Node Class",
+    "nsites" = "Number of Sites"
+  ))
+dev.off()
+
+```
+
 
 
 
@@ -596,4 +811,63 @@ length(rndout$close[tmetaCent$close[4]<rndout$close])/length(rndout$close)
 dplyr::mutate(tmetaCent, z.close=length(rndout$close[close<rndout$close])/length(rndout$close))
 dplyr::mutate(tmetaCent, z.close=length(close))
 ```
- 
+
+
+ Huh. Standardized metaweb centrality is alomst always 0, or close to it. Potentially due to inherent spatial structure of the component networks? (I.E. there's underlying spatial to the structure, and when you start randomizing connections without reguard to that then the null draws are almost always more well connected)
+```{r}
+#First, need to randomize the bird metanetworks for comparability
+  rndout <- NULL
+  nullBirdMeta <- nullmodel(table(BirdMeta), method = "quasiswap")
+  out <- simulate(nullBirdMeta, nsim=1000) #Set up our null model object (see vegan vignette)
+  for(simID in 1:1000){
+    rg <- igraph::graph_from_incidence_matrix(out[,,simID])
+    V(rg)$component <- components(rg)$membership #Assign component membership
+    rg <- delete.vertices(rg, V(rg)$component!=which.max(components(rg)$csize)) #Remove vertices that aren't included in the largest component    
+    rgCent <- data.frame(between=igraph::centralization.betweenness(rg)$res,
+                 close=igraph::centralization.closeness(rg)$res,
+                 deg=igraph::centralization.degree(rg, mode="all")$res,
+                 eig=igraph::centralization.evcent(rg)$vector,
+                 site_index=i, #Grab the site
+                 sim=simID,
+                 node=V(rg)$name) #Which simulation is this
+    rndout <- rbind(rgCent, rndout)
+  }
+  
+  bmetaCent$z.close.meta <- NA
+  for(j in unique(bmetaCent$node)){ #Perform ranking for each node
+    ret <- dplyr::filter(rndout, node==j) #Find all of the simulated values for a given node
+    emp <- dplyr::filter(bmetaCent, node==j) #Grab the empirical value
+    bmetaCent$z.close.meta[bmetaCent$node==j] <- sum(emp$close[1]>ret$close)/length(ret$close) #assign a z-score based on empirical value
+}
+
+hist(bmetaCent$z.close.meta, breaks=25, xlab="Z-transformed closeness", main="Z-transformed closeness of nodes in bird metaweb")
+
+
+#First, Repeat the above for comparability
+  rndout <- NULL
+  nullBirdMeta <- nullmodel(table(InsectMeta), method = "quasiswap")
+  out <- simulate(nullBirdMeta, nsim=1000) #Set up our null model object (see vegan vignette)
+  for(simID in 1:1000){
+    rg <- igraph::graph_from_incidence_matrix(out[,,simID])
+    V(rg)$component <- components(rg)$membership #Assign component membership
+    rg <- delete.vertices(rg, V(rg)$component!=which.max(components(rg)$csize)) #Remove vertices that aren't included in the largest component    
+    rgCent <- data.frame(between=igraph::centralization.betweenness(rg)$res,
+                 close=igraph::centralization.closeness(rg)$res,
+                 deg=igraph::centralization.degree(rg, mode="all")$res,
+                 eig=igraph::centralization.evcent(rg)$vector,
+                 site_index=i, #Grab the site
+                 sim=simID,
+                 node=V(rg)$name) #Which simulation is this
+    rndout <- rbind(rgCent, rndout)
+  }
+  
+  bmetaCent$z.close.meta <- NA
+  for(j in unique(bmetaCent$node)){ #Perform ranking for each node
+    ret <- dplyr::filter(rndout, node==j) #Find all of the simulated values for a given node
+    emp <- dplyr::filter(bmetaCent, node==j) #Grab the empirical value
+    bmetaCent$z.close.meta[bmetaCent$node==j] <- sum(emp$close[1]>ret$close)/length(ret$close) #assign a z-score based on empirical value
+  }
+  
+plot(x=scale(bmetaCent$close), y=scale(bmetaCent$z.close.meta))
+
+```
