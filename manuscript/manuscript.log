@@ -1,4 +1,4 @@
-This is LuaHBTeX, Version 1.14.0 (TeX Live 2022/dev/Debian)  (format=lualatex 2024.3.15)  13 DEC 2024 11:26
+This is LuaHBTeX, Version 1.14.0 (TeX Live 2022/dev/Debian)  (format=lualatex 2024.3.15)  16 JUN 2025 09:14
  restricted system commands enabled.
 **manuscript.tex
 (./manuscript.tex
@@ -391,7 +391,7 @@ Package uniquecounter Info: New unique counter `rerunfilecheck' on input line 2
 (/usr/share/texlive/texmf-dist/tex/latex/psnfss/times.sty
 Package: times 2020/03/25 PSNFSS-v9.3 (SPQR) 
 )
-LaTeX Font Info:    Trying to load font information for T1+ptm on input line 67
+LaTeX Font Info:    Trying to load font information for T1+ptm on input line 65
 .
 
 (/usr/share/texlive/texmf-dist/tex/latex/psnfss/t1ptm.fd
@@ -402,34 +402,38 @@ File: l3backend-luatex.def 2022-01-12 L3 backend support: PDF output (LuaTeX)
 \l__color_backend_stack_int=\count298
 \l__pdf_internal_box=\box58
 )
-(./manuscript.aux)
+(./manuscript.aux
+
+LaTeX Warning: Label `fig:metawebScale' multiply defined.
+
+)
 \openout1 = manuscript.aux
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 67.
-LaTeX Font Info:    ... okay on input line 67.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 67.
-LaTeX Font Info:    ... okay on input line 67.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 67.
-LaTeX Font Info:    ... okay on input line 67.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 67.
-LaTeX Font Info:    ... okay on input line 67.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 67.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 65.
+LaTeX Font Info:    ... okay on input line 65.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 65.
+LaTeX Font Info:    ... okay on input line 65.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 65.
+LaTeX Font Info:    ... okay on input line 65.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 65.
+LaTeX Font Info:    ... okay on input line 65.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 65.
 LaTeX Font Info:    Trying to load font information for TS1+cmr on input line 6
-7.
+5.
  (/usr/share/texlive/texmf-dist/tex/latex/base/ts1cmr.fd
 File: ts1cmr.fd 2019/12/16 v2.5j Standard LaTeX font definitions
 )
-LaTeX Font Info:    ... okay on input line 67.
-LaTeX Font Info:    Checking defaults for TU/lmr/m/n on input line 67.
-LaTeX Font Info:    ... okay on input line 67.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 67.
-LaTeX Font Info:    ... okay on input line 67.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 67.
-LaTeX Font Info:    ... okay on input line 67.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 67.
-LaTeX Font Info:    ... okay on input line 67.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 67.
-LaTeX Font Info:    ... okay on input line 67.
+LaTeX Font Info:    ... okay on input line 65.
+LaTeX Font Info:    Checking defaults for TU/lmr/m/n on input line 65.
+LaTeX Font Info:    ... okay on input line 65.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 65.
+LaTeX Font Info:    ... okay on input line 65.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 65.
+LaTeX Font Info:    ... okay on input line 65.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 65.
+LaTeX Font Info:    ... okay on input line 65.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 65.
+LaTeX Font Info:    ... okay on input line 65.
 
 *geometry* driver: auto-detecting
 *geometry* detected driver: luatex
@@ -489,16 +493,16 @@ e
 ))
 \symgns@font=\mathgroup6
 LaTeX Font Info:    Overwriting symbol font `gns@font' in version `bold'
-(Font)                  TS1/ptm/m/n --> TS1/ptm/b/n on input line 67.
-Package gensymb Info: Math companion symbols declared on input line 67.
-LaTeX Info: Redefining \degree on input line 67.
-LaTeX Info: Redefining \celsius on input line 67.
+(Font)                  TS1/ptm/m/n --> TS1/ptm/b/n on input line 65.
+Package gensymb Info: Math companion symbols declared on input line 65.
+LaTeX Info: Redefining \degree on input line 65.
+LaTeX Info: Redefining \celsius on input line 65.
 Package gensymb Info: Using text companion symbols for \degree, \celsius and \p
-erthousand on input line 67.
-LaTeX Info: Redefining \ohm on input line 67.
-Package gensymb Info: Using \textohm for \ohm on input line 67.
-Package gensymb Info: Using \textmu for \micro on input line 67.
-Package hyperref Info: Link coloring OFF on input line 67.
+erthousand on input line 65.
+LaTeX Info: Redefining \ohm on input line 65.
+Package gensymb Info: Using \textohm for \ohm on input line 65.
+Package gensymb Info: Using \textmu for \micro on input line 65.
+Package hyperref Info: Link coloring OFF on input line 65.
 
 (/usr/share/texlive/texmf-dist/tex/latex/hyperref/nameref.sty
 Package: nameref 2021-04-02 v2.47 Cross-referencing by name of section
@@ -511,52 +515,57 @@ Package: gettitlestring 2019/12/15 v1.6 Cleanup title references (HO)
 )
 \c@section@level=\count305
 )
-LaTeX Info: Redefining \ref on input line 67.
-LaTeX Info: Redefining \pageref on input line 67.
-LaTeX Info: Redefining \nameref on input line 67.
+LaTeX Info: Redefining \ref on input line 65.
+LaTeX Info: Redefining \pageref on input line 65.
+LaTeX Info: Redefining \nameref on input line 65.
 
 (./manuscript.out) (./manuscript.out)
 \@outlinefile=\write3
 
 \openout3 = manuscript.out
-LaTeX Font Info:    Trying to load font information for U+msa on input line 71.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 69.
 
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 71.
+LaTeX Font Info:    Trying to load font information for U+msb on input line 69.
 
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
-LaTeX Font Info:    Trying to load font information for TS1+ptm on input line 7
-1.
+LaTeX Font Info:    Trying to load font information for TS1+ptm on input line 6
+9.
 
 (/usr/share/texlive/texmf-dist/tex/latex/psnfss/ts1ptm.fd
 File: ts1ptm.fd 2001/06/04 font definitions for TS1/ptm.
 )
-Underfull \hbox (badness 10000) in paragraph at lines 74--75
+Underfull \hbox (badness 10000) in paragraph at lines 72--73
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 77--78
+Underfull \hbox (badness 10000) in paragraph at lines 75--76
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 80--81
+Underfull \hbox (badness 10000) in paragraph at lines 78--79
 
  []
 
-LaTeX Font Info:    Trying to load font information for T1+pcr on input line 83
+LaTeX Font Info:    Trying to load font information for T1+pcr on input line 81
 .
 (/usr/share/texlive/texmf-dist/tex/latex/psnfss/t1pcr.fd
 File: t1pcr.fd 2001/06/04 font definitions for T1/pcr.
 )
-Underfull \hbox (badness 10000) in paragraph at lines 83--84
+Underfull \hbox (badness 10000) in paragraph at lines 81--82
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 84--85
 
  []
 
@@ -565,82 +574,349 @@ Underfull \hbox (badness 10000) in paragraph at lines 86--87
 
  []
 
-
-Underfull \hbox (badness 10000) in paragraph at lines 88--89
-
- []
-
 [1
 
 {/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}]
-LaTeX Font Info:    Trying to load font information for T1+phv on input line 99
+LaTeX Font Info:    Trying to load font information for T1+phv on input line 97
 .
 
 (/usr/share/texlive/texmf-dist/tex/latex/psnfss/t1phv.fd
 File: t1phv.fd 2020/03/25 scalable font definitions for T1/phv.
 ) [2
 
-]
 
-Package natbib Warning: Citation `Young21' on page 3 undefined on input line 13
-5.
+Missing character: There is no ’ (U+2019) in font ptmr8t!
+Missing character: There is no — (U+2014) in font ptmr8t!
+Missing character: There is no — (U+2014) in font ptmr8t!
+Missing character: There is no ’ (U+2019) in font ptmr8t!
+] [3] [4
+
+] [5
+Missing character: There is no ’ (U+2019) in font ptmr8t!
+] [6]
+
+LaTeX Warning: Reference `supplement' on page 7 undefined on input line 178.
+
+[7] [8] [9] (./manuscript.bbl [10
+
+]) [11]
+
+! Package luatex.def Error: Options `bblly', `bblly', `bburx', `bbury',
+(luatex.def)                `natheight' and `natwidth' are not
+(luatex.def)                supported by luatex driver:
+(luatex.def)                use `viewport' instead.
+
+See the luatex.def package documentation for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.322 ...twidth=610,natheight=642]{figs/Concept.pdf}
+                                                  %
+Try typing  <return>  to proceed.
+If that doesn't work, type  X <return>  to quit.
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 135--136
+! Package luatex.def Error: Options `bblly', `bblly', `bburx', `bbury',
+(luatex.def)                `natheight' and `natwidth' are not
+(luatex.def)                supported by luatex driver:
+(luatex.def)                use `viewport' instead.
 
+See the luatex.def package documentation for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.322 ...twidth=610,natheight=642]{figs/Concept.pdf}
+                                                  %
+Try typing  <return>  to proceed.
+If that doesn't work, type  X <return>  to quit.
+
+<figs/Concept.pdf, id=146, 269.21165pt x 323.08318pt>
+File: figs/Concept.pdf Graphic file (type pdf)
+<use figs/Concept.pdf>
+Package luatex.def Info: figs/Concept.pdf  used on input line 322.
+(luatex.def)             Requested size: 455.24408pt x 546.3896pt.
+
+Overfull \hbox (36.0pt too wide) in paragraph at lines 322--324
+[]\T1/ptm/m/n/12 610642[][] 
  []
 
-[3
+
+LaTeX Warning: `!h' float specifier changed to `!ht'.
+
+
+! Package luatex.def Error: Options `bblly', `bblly', `bburx', `bbury',
+(luatex.def)                `natheight' and `natwidth' are not
+(luatex.def)                supported by luatex driver:
+(luatex.def)                use `viewport' instead.
+
+See the luatex.def package documentation for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.329 ...t=642]{figs/metaweb_area_scaling_icons.pdf}
+                                                  %
+Try typing  <return>  to proceed.
+If that doesn't work, type  X <return>  to quit.
+
+
+! Package luatex.def Error: Options `bblly', `bblly', `bburx', `bbury',
+(luatex.def)                `natheight' and `natwidth' are not
+(luatex.def)                supported by luatex driver:
+(luatex.def)                use `viewport' instead.
+
+See the luatex.def package documentation for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.329 ...t=642]{figs/metaweb_area_scaling_icons.pdf}
+                                                  %
+Try typing  <return>  to proceed.
+If that doesn't work, type  X <return>  to quit.
+
+<figs/metaweb_area_scaling_icons.pdf, id=147, 433.62pt x 433.62pt>
+File: figs/metaweb_area_scaling_icons.pdf Graphic file (type pdf)
+<use figs/metaweb_area_scaling_icons.pdf>
+Package luatex.def Info: figs/metaweb_area_scaling_icons.pdf  used on input lin
+e 329.
+(luatex.def)             Requested size: 455.24408pt x 455.26813pt.
+
+Overfull \hbox (36.0pt too wide) in paragraph at lines 329--331
+ []\T1/ptm/m/n/12 610642[][] 
+ []
+
+
+LaTeX Warning: `!h' float specifier changed to `!ht'.
+
+
+! Package luatex.def Error: Options `bblly', `bblly', `bburx', `bbury',
+(luatex.def)                `natheight' and `natwidth' are not
+(luatex.def)                supported by luatex driver:
+(luatex.def)                use `viewport' instead.
+
+See the luatex.def package documentation for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.336 ...t=642]{figs/metaweb_area_scaling_local.pdf}
+                                                  %
+Try typing  <return>  to proceed.
+If that doesn't work, type  X <return>  to quit.
+
+
+! Package luatex.def Error: Options `bblly', `bblly', `bburx', `bbury',
+(luatex.def)                `natheight' and `natwidth' are not
+(luatex.def)                supported by luatex driver:
+(luatex.def)                use `viewport' instead.
+
+See the luatex.def package documentation for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.336 ...t=642]{figs/metaweb_area_scaling_local.pdf}
+                                                  %
+Try typing  <return>  to proceed.
+If that doesn't work, type  X <return>  to quit.
+
+<figs/metaweb_area_scaling_local.pdf, id=148, 433.62pt x 433.62pt>
+File: figs/metaweb_area_scaling_local.pdf Graphic file (type pdf)
+<use figs/metaweb_area_scaling_local.pdf>
+Package luatex.def Info: figs/metaweb_area_scaling_local.pdf  used on input lin
+e 336.
+(luatex.def)             Requested size: 455.24408pt x 455.26813pt.
+
+Overfull \hbox (36.0pt too wide) in paragraph at lines 336--338
+ []\T1/ptm/m/n/12 610642[][] 
+ []
+
+
+LaTeX Warning: `!h' float specifier changed to `!ht'.
+
+
+! Package luatex.def Error: Options `bblly', `bblly', `bburx', `bbury',
+(luatex.def)                `natheight' and `natwidth' are not
+(luatex.def)                supported by luatex driver:
+(luatex.def)                use `viewport' instead.
+
+See the luatex.def package documentation for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.344 ...ht=642]{figs/metaweb_centrality_ztrans.pdf}
+                                                  %
+Try typing  <return>  to proceed.
+If that doesn't work, type  X <return>  to quit.
+
+
+! Package luatex.def Error: Options `bblly', `bblly', `bburx', `bbury',
+(luatex.def)                `natheight' and `natwidth' are not
+(luatex.def)                supported by luatex driver:
+(luatex.def)                use `viewport' instead.
+
+See the luatex.def package documentation for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.344 ...ht=642]{figs/metaweb_centrality_ztrans.pdf}
+                                                  %
+Try typing  <return>  to proceed.
+If that doesn't work, type  X <return>  to quit.
+
+<figs/metaweb_centrality_ztrans.pdf, id=149, 433.62pt x 433.62pt>
+File: figs/metaweb_centrality_ztrans.pdf Graphic file (type pdf)
+<use figs/metaweb_centrality_ztrans.pdf>
+Package luatex.def Info: figs/metaweb_centrality_ztrans.pdf  used on input line
+ 344.
+(luatex.def)             Requested size: 455.24408pt x 455.26813pt.
+
+Overfull \hbox (36.0pt too wide) in paragraph at lines 344--346
+ []\T1/ptm/m/n/12 610642[][] 
+ []
+
+
+LaTeX Warning: `!h' float specifier changed to `!ht'.
+
+[12
 
 ]
 
-LaTeX Warning: Reference `supplement' on page 4 undefined on input line 183.
-
-[4]
-No file manuscript.bbl.
-[5
+LaTeX Warning: Text page 13 contains only floats.
 
 
-] [6
+Overfull \vbox (3.97963pt too high) has occurred while \output is active []
 
-]
+
+[13<./figs/Concept.pdf>] [14<./figs/metaweb_area_scaling_icons.pdf>] [15<./figs/
+metaweb_area_scaling_local.pdf>] [16<./figs/metaweb_centrality_ztrans.pdf>]
+
+! Package luatex.def Error: Options `bblly', `bblly', `bburx', `bbury',
+(luatex.def)                `natheight' and `natwidth' are not
+(luatex.def)                supported by luatex driver:
+(luatex.def)                use `viewport' instead.
+
+See the luatex.def package documentation for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.382 ...eight=642]{figs/CentralityCorrelations.pdf}
+                                                  
+Try typing  <return>  to proceed.
+If that doesn't work, type  X <return>  to quit.
+
+
+! Package luatex.def Error: Options `bblly', `bblly', `bburx', `bbury',
+(luatex.def)                `natheight' and `natwidth' are not
+(luatex.def)                supported by luatex driver:
+(luatex.def)                use `viewport' instead.
+
+See the luatex.def package documentation for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.382 ...eight=642]{figs/CentralityCorrelations.pdf}
+                                                  
+Try typing  <return>  to proceed.
+If that doesn't work, type  X <return>  to quit.
+
+<figs/CentralityCorrelations.pdf, id=106698, 578.16pt x 289.08pt>
+File: figs/CentralityCorrelations.pdf Graphic file (type pdf)
+<use figs/CentralityCorrelations.pdf>
+Package luatex.def Info: figs/CentralityCorrelations.pdf  used on input line 38
+2.
+(luatex.def)             Requested size: 455.24408pt x 227.62082pt.
+
+Overfull \hbox (36.0pt too wide) in paragraph at lines 382--383
+ \T1/ptm/m/n/12 610642[] 
+ []
+
+
 warning  (pdf backend): ignoring duplicate destination with the name 'figure.1'
 
-Package natbib Warning: There were undefined citations.
+! Package luatex.def Error: Options `bblly', `bblly', `bburx', `bbury',
+(luatex.def)                `natheight' and `natwidth' are not
+(luatex.def)                supported by luatex driver:
+(luatex.def)                use `viewport' instead.
+
+See the luatex.def package documentation for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.390 ...t=642]{figs/localCentralityVariation_2.pdf}
+                                                  
+Try typing  <return>  to proceed.
+If that doesn't work, type  X <return>  to quit.
+
+
+! Package luatex.def Error: Options `bblly', `bblly', `bburx', `bbury',
+(luatex.def)                `natheight' and `natwidth' are not
+(luatex.def)                supported by luatex driver:
+(luatex.def)                use `viewport' instead.
+
+See the luatex.def package documentation for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.390 ...t=642]{figs/localCentralityVariation_2.pdf}
+                                                  
+Try typing  <return>  to proceed.
+If that doesn't work, type  X <return>  to quit.
+
+<figs/localCentralityVariation_2.pdf, id=106699, 794.97pt x 614.295pt>
+File: figs/localCentralityVariation_2.pdf Graphic file (type pdf)
+<use figs/localCentralityVariation_2.pdf>
+Package luatex.def Info: figs/localCentralityVariation_2.pdf  used on input lin
+e 390.
+(luatex.def)             Requested size: 455.24408pt x 351.79211pt.
+
+Overfull \hbox (36.0pt too wide) in paragraph at lines 390--391
+ \T1/ptm/m/n/12 610642[] 
+ []
+
+
+warning  (pdf backend): ignoring duplicate destination with the name 'figure.2'
+
+warning  (pdf backend): ignoring duplicate destination with the name 'figure.2'
+
+LaTeX Warning: `!h' float specifier changed to `!ht'.
 
 
 warning  (pdf backend): ignoring duplicate destination with the name 'page.1'
 [1
 
-] (./manuscript.aux)
+<./figs/CentralityCorrelations.pdf>]
+warning  (pdf backend): ignoring duplicate destination with the name 'page.2'
+[2<./figs/localCentralityVariation_2.pdf>] (./manuscript.aux)
 
 LaTeX Warning: There were undefined references.
+
+
+LaTeX Warning: There were multiply-defined labels.
 
 Package rerunfilecheck Info: File `manuscript.out' has not changed.
 (rerunfilecheck)             Checksum: D41D8CD98F00B204E9800998ECF8427E;0.
 )
 
 Here is how much of LuaTeX's memory you used:
- 11932 strings out of 477805
+ 12088 strings out of 477805
  100000,552014 words of node,token memory allocated
- 625 words of node memory still in use:
-   6 hlist, 2 vlist, 2 rule, 2 glue, 16 kern, 1 glyph, 15 attribute, 61 glue_spe
-c, 15 attribute_list, 1 write nodes
-   avail lists: 2:424,3:162,4:11,5:200,6:30,7:3497,8:28,9:254,10:10,11:229
- 32040 multiletter control sequences out of 65536+600000
- 90 fonts using 5981567 bytes
- 60i,9n,59p,608b,351s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 1671 words of node memory still in use:
+   6 hlist, 2 vlist, 2 rule, 2 glue, 177 kern, 1 glyph, 72 attribute, 60 glue_sp
+ec, 72 attribute_list, 1 write, 3 pdf_action nodes
+   avail lists: 2:551,3:293,4:26,5:305,6:35,7:7310,8:78,9:302,10:23,11:567
+ 32122 multiletter control sequences out of 65536+600000
+ 92 fonts using 6142447 bytes
+ 60i,6n,59p,1519b,489s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/usr/share/texlive/texmf-dist/fonts/enc/dvips/base/8r.enc}</usr/share/texlive/t
 exmf-dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb></usr/share/texlive/texmf-di
-st/fonts/type1/public/amsfonts/cm/cmr8.pfb></usr/share/texlive/texmf-dist/fonts/
-type1/urw/courier/ucrr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/helv
-etic/uhvr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmb8a.pfb>
-</usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/share/texl
-ive/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on manuscript.pdf (7 pages, 78823 bytes).
+st/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/share/texlive/texmf-dist/fonts
+/type1/public/amsfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/
+urw/courier/ucrr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/helvetic/u
+hvr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/
+share/texlive/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/share/texlive/te
+xmf-dist/fonts/type1/urw/times/utmri8a.pfb>
+Output written on manuscript.pdf (18 pages, 15662701 bytes).
 
-PDF statistics: 97 PDF objects out of 1000 (max. 8388607)
- 80 compressed objects within 1 object stream
- 37 named destinations out of 1000 (max. 131072)
+PDF statistics: 106755 PDF objects out of 114338 (max. 8388607)
+ 70735 compressed objects within 708 object streams
+ 68 named destinations out of 1000 (max. 131072)
  1 words of extra memory for PDF output out of 10000 (max. 100000000)
 

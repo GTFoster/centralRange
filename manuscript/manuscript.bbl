@@ -1,0 +1,119 @@
+\begin{thebibliography}{14}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Burin et~al.(2021)Burin, Guimaraes~Jr, and
+  Quental]{burin2021macroevolutionary}
+Gustavo Burin, Paulo~R Guimaraes~Jr, and Tiago~B Quental.
+\newblock Macroevolutionary stability predicts interaction patterns of species
+  in seed dispersal networks.
+\newblock \emph{Science}, 372\penalty0 (6543):\penalty0 733--737, 2021.
+
+\bibitem[D{\'a}ttilo et~al.(2020)D{\'a}ttilo, Barrozo-Ch{\'a}vez, Lira-Noriega,
+  Guevara, Villalobos, Santiago-Alarcon, Neves, Izzo, and
+  Ribeiro]{dattilo2020species}
+Wesley D{\'a}ttilo, Nathalia Barrozo-Ch{\'a}vez, Andr{\'e}s Lira-Noriega, Roger
+  Guevara, Fabricio Villalobos, Diego Santiago-Alarcon, Frederico~Siqueira
+  Neves, Thiago Izzo, and S{\'e}rvio~Pontes Ribeiro.
+\newblock Species-level drivers of mammalian ectoparasite faunas.
+\newblock \emph{Journal of Animal Ecology}, 89\penalty0 (8):\penalty0
+  1754--1765, 2020.
+
+\bibitem[L{\'a}zaro et~al.(2020)L{\'a}zaro, G{\'o}mez-Mart{\'\i}nez, Alomar,
+  Gonz{\'a}lez-Est{\'e}vez, and Traveset]{lazaro2020linking}
+Amparo L{\'a}zaro, Carmelo G{\'o}mez-Mart{\'\i}nez, David Alomar, Miguel~A
+  Gonz{\'a}lez-Est{\'e}vez, and Anna Traveset.
+\newblock Linking species-level network metrics to flower traits and plant
+  fitness.
+\newblock \emph{Journal of Ecology}, 108\penalty0 (4):\penalty0 1287--1298,
+  2020.
+
+\bibitem[Maia et~al.(2019)Maia, Vaughan, and Memmott]{maia2019plant}
+Kate~P Maia, Ian~P Vaughan, and Jane Memmott.
+\newblock Plant species roles in pollination networks: an experimental
+  approach.
+\newblock \emph{Oikos}, 128\penalty0 (10):\penalty0 1446--1457, 2019.
+
+\bibitem[Mart{\'\i}n~Gonz{\'a}lez et~al.(2015)Mart{\'\i}n~Gonz{\'a}lez,
+  Dalsgaard, Nogu{\'e}s-Bravo, Graham, Schleuning, Maruyama, Abrahamczyk,
+  Alarc{\'o}n, Araujo, Ara{\'u}jo, et~al.]{Gonzales2015macroecology}
+Ana~M Mart{\'\i}n~Gonz{\'a}lez, Bo~Dalsgaard, David Nogu{\'e}s-Bravo,
+  Catherine~H Graham, Matthias Schleuning, Pietro~K Maruyama, Stefan
+  Abrahamczyk, Ruben Alarc{\'o}n, Andr{\'e}a~C Araujo, Francielle~P Ara{\'u}jo,
+  et~al.
+\newblock The macroecology of phylogenetically structured hummingbird--plant
+  networks.
+\newblock \emph{Global Ecology and Biogeography}, 24\penalty0 (11):\penalty0
+  1212--1224, 2015.
+
+\bibitem[Martins et~al.(2024)Martins, Garcia-Callejas, Lai, Wootton, and
+  Tylianakis]{martins2024propagation}
+Lucas~P Martins, David Garcia-Callejas, Hao~Ran Lai, Kate~L Wootton, and
+  Jason~M Tylianakis.
+\newblock The propagation of disturbances in ecological networks.
+\newblock \emph{Trends in Ecology \& Evolution}, 39\penalty0 (6):\penalty0
+  558--570, 2024.
+
+\bibitem[Moulatlet et~al.(2023)Moulatlet, D{\'a}ttilo, and
+  Villalobos]{moulatlet2023species}
+Gabriel~M Moulatlet, Wesley D{\'a}ttilo, and Fabricio Villalobos.
+\newblock Species-level drivers of avian centrality within seed-dispersal
+  networks across different levels of organisation.
+\newblock \emph{Journal of Animal Ecology}, 92\penalty0 (11):\penalty0
+  2126--2137, 2023.
+
+\bibitem[Okuyama and Holland(2008)]{okuyama2008network}
+Toshinori Okuyama and J~Nathaniel Holland.
+\newblock Network structural properties mediate the stability of mutualistic
+  communities.
+\newblock \emph{Ecology letters}, 11\penalty0 (3):\penalty0 208--216, 2008.
+
+\bibitem[Potts et~al.(2010)Potts, Biesmeijer, Kremen, Neumann, Schweiger, and
+  Kunin]{potts2010global}
+Simon~G Potts, Jacobus~C Biesmeijer, Claire Kremen, Peter Neumann, Oliver
+  Schweiger, and William~E Kunin.
+\newblock Global pollinator declines: trends, impacts and drivers.
+\newblock \emph{Trends in ecology \& evolution}, 25\penalty0 (6):\penalty0
+  345--353, 2010.
+
+\bibitem[Rodger et~al.(2021)Rodger, Bennett, Razanajatovo, Knight, van Kleunen,
+  Ashman, Steets, Hui, Arceo-G{\'o}mez, Burd, et~al.]{rodger2021widespread}
+James~G Rodger, Joanne~M Bennett, Mialy Razanajatovo, Tiffany~M Knight, Mark
+  van Kleunen, Tia-Lynn Ashman, Janette~A Steets, Cang Hui, Gerardo
+  Arceo-G{\'o}mez, Martin Burd, et~al.
+\newblock Widespread vulnerability of flowering plant seed production to
+  pollinator declines.
+\newblock \emph{Science advances}, 7\penalty0 (42):\penalty0 eabd3524, 2021.
+
+\bibitem[Suweis et~al.(2013)Suweis, Simini, Banavar, and
+  Maritan]{suweis2013emergence}
+Samir Suweis, Filippo Simini, Jayanth~R Banavar, and Amos Maritan.
+\newblock Emergence of structural and dynamical properties of ecological
+  mutualistic networks.
+\newblock \emph{Nature}, 500\penalty0 (7463):\penalty0 449--452, 2013.
+
+\bibitem[Th{\'e}bault and Fontaine(2010)]{thebault2010stability}
+Elisa Th{\'e}bault and Colin Fontaine.
+\newblock Stability of ecological communities and the architecture of
+  mutualistic and trophic networks.
+\newblock \emph{Science}, 329\penalty0 (5993):\penalty0 853--856, 2010.
+
+\bibitem[Traveset et~al.(2017)Traveset, Tur, and
+  Egu{\'\i}luz]{traveset2017plant}
+Anna Traveset, Cristina Tur, and V{\'\i}ctor~M Egu{\'\i}luz.
+\newblock Plant survival and keystone pollinator species in stochastic
+  coextinction models: role of intrinsic dependence on animal-pollination.
+\newblock \emph{Scientific reports}, 7\penalty0 (1):\penalty0 6915, 2017.
+
+\bibitem[Watts et~al.(2016)Watts, Dormann, Mart{\'\i}n~Gonz{\'a}lez, and
+  Ollerton]{watts2016influence}
+Stella Watts, Carsten~F Dormann, Ana~M Mart{\'\i}n~Gonz{\'a}lez, and Jeff
+  Ollerton.
+\newblock The influence of floral traits on specialization and modularity of
+  plant--pollinator networks in a biodiversity hotspot in the peruvian andes.
+\newblock \emph{Annals of Botany}, 118\penalty0 (3):\penalty0 415--429, 2016.
+
+\end{thebibliography}

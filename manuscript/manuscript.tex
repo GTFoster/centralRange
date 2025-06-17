@@ -32,13 +32,11 @@
 
 
 
-\title{\normalsize CentralRange }
+\title{\normalsize CentralRange}
 
 \author[a,*]{Grant Foster}
-
-\author[a]{Tad A Dallas}
-
 \author[a]{Cleber Ten Caten}
+\author[a]{Tad A Dallas}
 
 
 \affil[a]{Department of Biological Sciences, University of South Carolina, Columbia, SC, 29208 }
@@ -100,23 +98,12 @@
 \setstretch{1.3}
 
 
-\subsection*{Abstract}
+\subsection*{ESA Abstract}
+\paragraph{}
+In mutualistic interaction networks, a species’ role in a given network can be described using several mathematical properties. Node centrality—a suite of measures describing how connected a given node is to the rest of the network—is a commonly studied metric as removing highly central species from a network is likely to have outsized impacts on biotic communities. Understanding the drivers of species' centrality in floral visitation networks is crucial, as declines in pollinator abundance and diversity threaten to reduce pollination services globally. One potential driver of species centrality is the size of its range. We hypothesize that, at the level of the metaweb (the global set of observed interactions) species centrality in mutualistic networks would positively scale with both environmental and geographic range size, as wide-ranging species exhibit turnover in interaction partners across space or environments. We also expected this positive relationship to hold in the context of local interaction networks as well, as broad ranges may be associated with generalist partner preferences. Here we test these expectations by characterizing these associations in floral visitation networks. We used large-scale occurrence datasets to calculate the geographic and environmental ranges occupied by 2,703 plant and 4,305 floral visitor species, distributed across 99 globally distributed floral-visitation networks comprising 31,677 unique interactions.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+\paragraph{}
+We found that at the global metaweb level, a species’ closeness centrality in both insect-plant and avian-plant floral visitor metawebs was positively related to geographic range size but was negatively related to environmental breadth in only the insect metaweb. However, after using null model approaches to standardize for the effect of potential interaction turnover, standardized closeness showed no relationship with either measure of range size in the insect metaweb, and a negative relationship with environmental breadth in the avian network. At a local scale, centrality in insect-plant networks was positively related to environmental breadth but negatively related to geographic range size. In avian-plant networks, we observed a negative effect of environmental breadth on species centrality and no impact of geographic range size. Together, our results indicate that the impacts of range size on species centrality in large-scale metawebs are primarily driven by interaction turnover and the scaling of interaction specificity from local to global networks. Species with large geographic ranges may appear to be relatively generalist in global metawebs due to high interaction turnover, but local-scale interaction patterns may exhibit more nuanced relationships with species range limits.
 
 
 
@@ -126,40 +113,50 @@
 \setstretch{1.3}
 \subsection*{Introduction}
 
-\paragraph*{}
-Central 
-
 
 \paragraph*{}
 %TS: Centrality is an important measure of node's contribution to a network, and understanding what makes species more central is important
-Network approaches have advanced our knowledge of the interconnected webs of species interactions present within and across ecosystems \cite{Young21}.\\
-
+Originating in mathematics, network science perspectives have become increasingly popular in the study of ecological networks throughout recent years. Under this framework, a suite of interactions in a given ecosystem can be represented as a series of nodes (representing species) connected by links (interactions between those species). What constitutes an "interaction" is variable, set by the context of the system, and may include a predation events, infections, or a floral visits. By quantifying the full set of interactions present in a given system, we have gained insights into the structural properties of species interaction networks that allow us to better predict their potential responses to change. For example, existing foundational work links network properties such as nestedness (the tendency for species with few interactions to link to species with many other interactions) and modularity (the tendency for species to interact more within given groups or "modules" than between them) to features such as a network's stability in the face of perturbation or stochastic species extinction (\cite{okuyama2008network, thebault2010stability, suweis2013emergence}).
 
 
 
 \paragraph*{}
-TS: Geographic range size may be associated with species role in a network. 
+%Species Centrality in Empirical Networks is important, and people try to predict it
+In addition to these network-level properties, we can also measure the contribution of an individual node to the network's overall structure through node-level properties. One of the most commonly analyzed node-level properties is centrality: a suite of measures describing how connected a given node is to the rest of the network. Highly central species may represent keystone species in a network, and removal of these nodes is likely to have outsized impacts on their associated communities (\cite{traveset2017plant, maia2019plant, martins2024propagation}). Understanding the factors driving species centrality in mutualistic networks is an active area of research. Previous work has emphasized the importance of species traits\cite{watts2016influence, lazaro2020linking, maia2019plant} and evolutionary history (\cite{Gonzales2015macroecology, burin2021macroevolutionary}) on node and network-level properties. Understanding what drives species' roles in floral visitation networks is of particular importance, as global declines in pollinator abundance and diversity threaten to potentially reduce pollination services in many ecosystems (\cite{potts2010global, rodger2021widespread}). 
+
 
 
 \paragraph*{}
-TS: Centrality may have a different meaning at different network scales (metaweb vs local)
+%TS: Geographic range size may be associated with species role in a network. 
+In addition to morphological and phylogenetic associations, the size of a species range may also impact its role in ecological networks at both local and global scales (\cite{moulatlet2023species, dattilo2020species}). As species ranges increase in size, so does the total number of potential interaction partners. As a consequence, in regional metawebs wide-ranging species may increase in their total number of interactions and subsequently their centrality. However, species with broad geographic ranges may also be more central in local networks if geographic range size is associated with traits or population features such as generalist interaction strategies, high abundance, or other characteristics. This potential confounder makes it difficult to differentiate the potential reasons geographic range size may impact species role in mutualistic networks. The judicious use of null modeling approaches allow us to tease apart the effects of these potential drivers. 
 
+
+
+\paragraph*{}
+%We can think of "range size" geographically or environmentally
+The size of a species’ geographic range is driven by a number of bio-geographic factors, including evolutionary history, dispersal limitation, biotic interactions, and climatic constraints. As species increase in the geographic extent they occupy, they may geographically overlap with more potential partners, increasing their centrality. However, geographic range size might not be the best predictor of the number of potential partners. Instead, species that occur in more climatically diverse environments may co-occur with a larger set of potential partners, potentially increasing its centrality in a regional meta-web. On a local scale, this climatic generalism may also be associated with interaction generalism, resulting in a positive relationship between environmental range and local centrality as well. 
+% TD: talk about niches here? 
+
+
+
+
+%TS: Centrality means different things at the local and regional scale
+\paragraph*{}
+Biologically, species centrality has a fundamentally different meaning in local networks or regional metawebs, and understanding how centrality scales between these contexts is still an open question in network ecology. Most work looking to investigate correlates with species centrality to date has focused on local scales (cite{ADD}, but see \cite{moulatlet2023species}), as here node centrality has clear links to network properties cite {network stability stuff}. Species that occur in many local networks and are highly central in many or all of them are likely to also have high centrality in the regional metaweb. However, even species with low local centrality can achieve high centrality in the regional metaweb if they exhibit high interaction turnover across a wide geographic area. At a regional level, these central species may appear as relative generalists with many potential partners. However, at local scales, the realized set of interactions of any given population may be relatively narrow. As such, understanding how centrality scales from local to regional scales helps us better understand how population-level interaction patterns may vary across mutualistic species' ranges. 
 
 
 
 % thesis
 \paragraph*{}
+To answer these questions, we look how species-level centrality with range size in a globally distributed set of plant-avian and plant-insect floral visitation networks. We find that...
 
+\vspace{30pt}
 RQ1: Do we see a positive relationship between range size and species centrality in local or regional metawebs?
+    H1: As geographic range size increases, metaweb centrality will increase due, at least partially due to an increase in total number of connections.
+    H2: As geographic range size increases, local centrality will also increase due to features such as generalist species being associated with larger ranges
 
 RQ2: If so, does this appear when we use null models that account for potential co-occurrence?
-
-
-
-
-
-
-
+    H1: Even if we account for the effect of increased coocurence that can drive centrality in the metaweb, do we still see effects of geographic range size
 
 
 
@@ -170,28 +167,30 @@ RQ2: If so, does this appear when we use null models that account for potential 
 \subsection*{Methods}
 
 \paragraph*{Data}
+We constructed a global pollinator metaweb the Web of Life Dataset(\citep{}). This resulted in a total of 99 globally distributed networks, and a total of 7,239 individual species, between which occurred a total of 31,677 unique pollination interactions. We further divided this global metaweb into plant-avian interactions and plant-invertebrate interactions. Most studies only characterized one of these types of interactions; for the three studies that reported both insect and avian floral visits, we divided the network as appropriate. The plant-avian metaweb is comprised 2,033 unique species-level interactions between 605 plant and 120 bird species across 31 sites. The insect-plant metaweb is larger, consisting of 28,533 interactions between 2,103 plants and 4,185 invertebrate species across 71 sites. 
 
-
-
+SIn order to investigate the role the extent of the species range plays in determining its position within these networks, we needed to characterize the geographic ranges of these species. While expert range maps are available for many birds and some well-studied plant taxa, the vast majority of species in our study do not have up to date expert range polygons available. To circumvent this shortfall, we estimated species ranges from available occurrence points. 
 
 \paragraph*{Species Ranges}
-  We constructucted a global pollinator metaweb was created by querying Mangel for plant-pollinator networks. This resulted in a total of 65 globally distributed networks, and a total of 1018 individual species. For each species, we queried global occurance records from GBIF using the \texttt{rgbif} packages. Occurance points were first processed using \texttt{coordinateCleaner}; points were removed if they were present outside of the fossil record, occured within 2km of country centroids, were located on ocean, or were marked as an "introduced" individual.
-
-\paragraph{} To avoid overestimating species range through including spurrious or transient records in GBIF, we used a quantiled minimum convex polygon approach. Whithin each continent, we created the smallest minimum convex polygon that contains 95\% of the occurance points within that continent. Range polygons were not created for species-continent combinations with less than 10 occurence points. 
+For each species, we queried global occurrence records from the Global Biotic Information Facility (GBIF) using the \texttt{rgbif} packages. Occurrence points were first processed using the \texttt{coordinateCleaner} package; points were removed if they were present only in the the fossil record, occurred within 2km of country centroids, were located on ocean, or were marked as an "introduced" individual. To avoid overestimating species range through including spurious or transient records in GBIF, we used a quantiled minimum convex polygon (MCP) approach. Within each continent according to a 7 continent model (Asia, Europe, Africa, Oceania, North America, Antartica, and South America), we created the smallest minimum convex polygon that contains 95\% of the occurrence points within each continent. Range polygons were not created for species-continent combinations with less than 10 occurrence points. Total species geographic range was calculated as the total terrestrial area occupied across all continents. The points included within these geographic space polygons were also used for the calculation of environmental range (below). 
 
 
-\paragraph{} For environmental space, we performed a principle components analysis of 18 environmental variables across the globe at a X by X resolution. The first two axes explain X\% of variation of global climate, and are primarily explained by Y VARS \ref{supplement}. We plotted each occurence point for a given species in the cartesian plane defined by these two PAC axis, and the repeated
+\paragraph{} For environmental space, we performed a principle components analysis of 18 environmental variables across the globe at a X by X resolution. The first two axes explain X\% of variation of global climate, and are primarily explained by Y VARS \ref{supplement}. For each species, we plotted each occurrence point that fell within the previously calculated geographic ranges onto the Cartesian plan defined by these two PCA axes, combining points from all continents on which a species occured. We then again employed a MCP approach to draw an environmental range in this PCA space for each species. 
 
+\paragraph*{Centrality Measures}
+Insect and avian floral visitor metwebs contained 6288 and 725 total species, respectively. The vast majority of species in each network were connected to one major component. As centrality measures become non-comparable in unconnected graphs, we dropped species that were not part of these dominant components. This resulted in the removal of 51 (0.81\%) and 4 (.55\%) species from the insect and avian metawebs, respectively. Closeness centrality was calculated for nodes in the remaining network using the \texttt{igraph} package. We chose closeness centrality as an intermediate between hyper-local measures of centrality (e.x. degree centrality) and hyper-global measures (e.x. eigenvalue centrality). At the global metaweb scale, the rank of alternative metrics of centrality were positively correlated, though to varying degrees (\ref{fig:S1}).
 
+\paragraph*{} While centrality metrics are designed to be comparable between nodes of the same network, their absolute value is heavily influenced by network size and connectance, potentially hindering comparisons across networks. In order to confront this problem when measuring species-level centrality in local networks, we implemented a null-model approach to standardize centrality within each local network. For each network, we utilized the \texttt{vegan} package to randomly permute links within the network, while preserving each nodes' connectance. By creating 1000 replicate permuted networks, we're able to characterize the distribution of each nodes' potential centrality values, and then can use this distribution's mean and standard deviation to z-transform our empirically observed values. In addition to randomizing local networks, we also combined permuted local webs to create null metawebs. After repeating this process 1000 times, we are then able to use the distribution of null closeness values to z-transform our species-level observations of metaweb centrality in a way that accounts for species presence across multiple local networks. 
 
-%\paragraph{} Species ranges were calculated through both minimum convex polygon and alpha hull approaches ($\alpha = 20$). Each species range was calculated seperately for each continent according to a 7 continent model (Asia, Europe, Africa, Oceania, North America, Antartica, and South America); total species range was calculated as the total terrestrial area occupied across all continents.
+\paragraph*{Statistical Analyses}
+Initial models of global centrality as a function of geographic range size and niche breadth that included interaction effects yielded non-significant interaction coefficeints (), and thus interactions were excluded from the analysis. 
 
 
 
 
 
 \paragraph*{Reproducibility}
-$R$ code and data to reproduce the analyses is provided at \\
+$R$ code and data to reproduce the analyzes are provided at here \\
 \texttt{https://doi.org/}
 
 
@@ -215,21 +214,24 @@ $R$ code and data to reproduce the analyses is provided at \\
 
 
 
+ 
 
 % -------------------
+
 \subsection*{Results}
 
-
 \paragraph*{}
-
-
-
-\paragraph*{}
-
+%Raw metaweb
+Across sites, geographic and environmental range size was positively correlated (r=0.752). At the level of the regional metaweb, the closeness centrality of a species was positively related to geographic range size in both insect ($p < 2e-16$) and avian networks ($p<0.0005$). However, despite being positively correlated with centrality, niche breadth is actually negatively associated with closeness centrality in thhe insect-plant metaweb (0.00194) and unrelated in the avian-plant metaweb (p=.43) after accounting for the impact of geographic range size. 
 
 
 \paragraph*{}
+%Z-transformed metaweb
 
+
+
+\paragraph*{}
+%Effect on local webs
 
 
 
@@ -302,40 +304,9 @@ $R$ code and data to reproduce the analyses is provided at \\
 
 
 \clearpage
+\bibliographystyle{plainnat}
+\bibliography{annot}
 
-\bibliography{var}
-\bibliographystyle{jae}
-
-
-
-
-
-
-
-\clearpage
-\subsection*{Tables}
-
-
-\begin{table}[ht]
-\centering
-\caption{A table with caption. }
-\label{tab:moran}
-\begin{tabular}{lllllll}
-  \hline
-  covariate & t-SNE axis & obs & exp & sd & $p$-value & $z$-score \\
-  \hline
-  geography       & 1 & 0.02963 & -0.00032 & 0.00014 & \textbf{$<$ 0.0001} & 216.3 \\
-                  & 2 & 0.01930 & -0.00032 & 0.00014 & \textbf{$<$ 0.0001} & 141.7 \\
-  age structure   & 1 & 0.00043 & -0.00032 & 0.00001 & \textbf{$<$ 0.0001} & 60.5  \\
-                  & 2 & 0.00017 & -0.00032 & 0.00001 & \textbf{$<$ 0.0001} & 39.4  \\
-  population size & 1 & 0.00002 & -0.00032 & 0.00003 & \textbf{$<$ 0.0001} & 11.7  \\
-                  & 2 & 0.00004 & -0.00032 & 0.00003 & \textbf{$<$ 0.0001} & 12.3  \\
-  $R_0$           & 1 & 0.00339 & -0.00032 & 0.00003 & \textbf{$<$ 0.0001} & 110.7 \\
-                  & 2 & 0.00135 & -0.00032 & 0.00003 & \textbf{$<$ 0.0001} & 49.8  \\
-
- \hline
-\end{tabular}
-\end{table}
 
 
 
@@ -347,23 +318,33 @@ $R$ code and data to reproduce the analyses is provided at \\
 \subsection*{Figures}
 
 \begin{figure}[h!]
-  \begin{center}
-    %\includegraphics[width=\textwidth]{Figures/concept.pdf}
-    \caption{A figure with caption. }
-    \label{fig:concept}
-  \end{center}
+
+    \includegraphics[width=\columnwidth, natwidth=610,natheight=642]{figs/Concept.pdf}%
+    \label{fig:metawebScale}
+    \caption{Conceptual diagram}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+    \includegraphics[width=\columnwidth, natwidth=610,natheight=642]{figs/metaweb_area_scaling_icons.pdf}%
+    \label{fig:metawebScale}
+    \caption{Species-level closeness centrality in the global meta-web as a function of either geographic or environmental range size. Colored lines represent a linear model; gray shaded region represent 95\% confidence interval.}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+    \includegraphics[width=\columnwidth, natwidth=610,natheight=642]{figs/metaweb_area_scaling_local.pdf}%
+    \label{fig:localScale}
+    \caption{Average z-transformed species-level closeness centrality in their respective local networks as a function of either geographic or environmental range size. Colored lines represent a linear model; gray shaded region represent 95\% confidence interval.}
 \end{figure}
 
 
-
-
-
-
-
-
-
-
-
+\begin{figure}[h!]
+\centering
+    \includegraphics[width=\columnwidth ,natwidth=610,natheight=642]{figs/metaweb_centrality_ztrans.pdf}%
+    \label{fig:	}
+    \caption{Z-transformed species-level closeness centrality in the global meta-web as a function of either geographic or environmental range size. Colored lines represent a linear model; gray shaded region represent 95\% confidence interval.}
+\end{figure}
 
 
 
@@ -390,12 +371,6 @@ $R$ code and data to reproduce the analyses is provided at \\
         }
 
 \section*{Supplementary materials}
-
-\begin{center}
-\textbf{Title}:       \\
-\textbf{Authors}:     \\
-\end{center}
-
 \beginsupplement
 
 
@@ -404,12 +379,19 @@ $R$ code and data to reproduce the analyses is provided at \\
 
 \begin{figure}[h!]
   \begin{center}
-    %\includegraphics[width=0.75\textwidth]{Figures/.pdf}
-    \caption{Caption }
-    \label{fig:label}
+    \includegraphics[width=\textwidth, natwidth=610,natheight=642]{figs/CentralityCorrelations.pdf}
+    \caption{Pairwise correlation of common centrality metrics }
+    \label{fig:S1}
   \end{center}
 \end{figure}
 
+\begin{figure}[h!]
+  \begin{center}
+    \includegraphics[width=\textwidth, natwidth=610,natheight=642]{figs/localCentralityVariation_2.pdf}
+    \caption{Distribution of closeness centrality in local networks for species that occur in multiple sites. Top row of plots represent nodes in bird-plant networks with 7 or more occurrences. Bottom row represent nodes in insect-plant networks with 10 or more occurrences. Left columns represent unstandardized local closeness centrality values;  red points represent closeness centrality of that species in the metaweb. Right column represents the same points after z-score standardization with respect to 1000 null model randomization (see text).}
+    \label{fig:S2}
+  \end{center}
+\end{figure}
 
 
 
