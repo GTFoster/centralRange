@@ -137,8 +137,6 @@ components(imeta)$csize #Largest component has 6237 nodes; the rest are isolated
 imeta <- delete.vertices(imeta, V(imeta)$component!=which.max(components(imeta)$csize)) #Remove vertices that aren't included in the largest component
 table(V(imeta)$component)
 
-
-
 V(bmeta)$component <- components(bmeta)$membership
 components(bmeta)$csize #Largest component has 721 nodes; the rest are isolated pairs
 bmeta <- delete.vertices(bmeta, V(bmeta)$component!=which.max(components(bmeta)$csize)) #Remove vertices that aren't included in the largest component
@@ -263,7 +261,7 @@ georng <- read.csv(file="data/geosummaryout.csv")
 envrng <- read.csv(file="data/envsummaryout.csv")
 ```
 
-Add envriornmental range to our existing data
+Add environmental range to our existing data
 ```{r}
 envrng$node <- envrng$file
 envrng$node <- gsub("_", " ", envrng$node)
@@ -306,7 +304,7 @@ hist(imetaCent$eig)
 hist(imetaCent$close)
 ```
 
-Investigative plotting of relationship between envrionmental range and centrality
+Investigative plotting of relationship between environmental range and centrality
 
 ```{r}
 imetaCent %>% #dplyr::filter(., close<0.5) %>% 
@@ -513,112 +511,172 @@ summary(fam)
  This takes a while, so I'm setting default=F and loading outputs below. 
 ```{r, eval=F}
 
-localiCent <- NULL
-for(i in 1:length(unique(Insectweb$site_index))){
-    temp <- Insectweb[Insectweb$site_index==i,]
-      if(nrow(temp)<4){ #if too small a network, skip it
-      next
-    }
-    
-    temp <- dplyr::select(temp, species1, species2) %>% unique() #grab unique interactions
-    tmeta <- igraph::graph_from_data_frame(temp, directed=F) #Create igraph object
-    tbig <- igraph::graph_from_incidence_matrix(table(temp)) #Create a large network where we don't do component drop (for null model later)
-    
-    V(tmeta)$component <- components(tmeta)$membership #Assign component membership
-    tmeta <- igraph::delete.vertices(tmeta, V(tmeta)$component!=which.max(components(tmeta)$csize)) #Remove vertices that aren't included in the largest component
-    
-    tmetaCent <- data.frame(between=igraph::centralization.betweenness(tmeta)$res, #Calculate our centrality measures (locally)
-               close=igraph::centralization.closeness(tmeta)$res,
-               deg=igraph::centralization.degree(tmeta, mode="all")$res,
-               eig=igraph::centralization.evcent(tmeta)$vector,
-               node=V(tmeta)$name,
-               site_index=i)
-    #Now we have our actual metric, but we need a null model approach
-    ## Perform z-score standardization
-    rndout <- NULL
-    nullsetup <- nullmodel(table(temp), method = "quasiswap")
-    out <- simulate(nullsetup, nsim=1000) #Set up our null model object (see vegan vignette)
-    for(simID in 1:1000){
-      rg <- igraph::graph_from_incidence_matrix(out[,,simID])
-      V(rg)$component <- components(rg)$membership #Assign component membership
-      rg <- delete.vertices(rg, V(rg)$component!=which.max(components(rg)$csize)) #Remove vertices that aren't included in the largest component    
-      rgCent <- data.frame(between=igraph::centralization.betweenness(rg)$res,
-                   close=igraph::centralization.closeness(rg)$res,
-                   deg=igraph::centralization.degree(rg, mode="all")$res,
-                   eig=igraph::centralization.evcent(rg)$vector,
-                   site_index=i, #Grab the site
-                   sim=simID,
-                   node=V(rg)$name) #Which simulation is this
-      rndout <- rbind(rgCent, rndout)
-    }
-    #Calculate the z-score
-    tmetaCent$z.close <- NA
-    for(j in 1:nrow(tmetaCent)){ #Perform ranking for each node
-      ret <- dplyr::filter(rndout, node==tmetaCent$node[j]) #Find all of the simulated values for a given node
-      emp <- dplyr::filter(tmetaCent, node==tmetaCent$node[j]) #Grab the empirical value
-      #tmetaCent$z.close[tmetaCent$node==ret$node[j]] <-sum(emp$close>ret$close)/length(ret$close) #assign a z-score based on empirical value ranking; old version
-      tmetaCent$z.close[tmetaCent$node==ret$node[j]] <- (emp$close - mean(ret$close, na.rm=TRUE))/sd(ret$close, na.rm=TRUE) #Updated; z-score based on normality
-    localiCent <- rbind(localiCent, tmetaCent)
-  }
-}
+# Get unique site indices
+site_indices <- unique(Insectweb$site_index)
 
+# Setup cluster
+n_cores <- detectCores() - 1
+cl <- makeCluster(n_cores)
 
+# Export necessary variables and functions to workers
+clusterExport(cl, varlist = c("Insectweb"), envir = environment())
+clusterEvalQ(cl, {
+  library(igraph)
+  library(vegan)
+  library(dplyr)
+})
 
+# Parallelized version of your per-site loop
+localiCent_list <- parLapply(cl, site_indices, function(i) {
+  temp <- Insectweb[Insectweb$site_index == i, ]
+  if (nrow(temp) < 4) return(NULL)
 
-localbCent <- NULL
-for(i in 1:length(unique(Birdweb$site_index))){ #Iterate over each local network
-  temp <- Birdweb[Birdweb$site_index==i,]
-    if(nrow(temp)<4){ #if too small a network, skip it
-    next
-  }
-  
-  temp <- dplyr::select(temp, species1, species2) %>% unique() #grab unique interactions
-  tmeta <- igraph::graph_from_data_frame(temp, directed=F) #Create igraph object
-  
-  V(tmeta)$component <- components(tmeta)$membership #Assign component membership
-  tmeta <- delete.vertices(tmeta, V(tmeta)$component!=which.max(components(tmeta)$csize)) #Remove vertices that aren't included in the largest component
-  
-  #Calculate centrality metrics (raw)
-  tmetaCent <- data.frame(between=igraph::centralization.betweenness(tmeta)$res, 
-             close=igraph::centralization.closeness(tmeta)$res,
-             deg=igraph::centralization.degree(tmeta, mode="all")$res,
-             eig=igraph::centralization.evcent(tmeta)$vector,
-             node=V(tmeta)$name,
-             site_index=i)
-  
-  ## Perform z-score standardization
-  rndout <- NULL
+  temp <- dplyr::select(temp, species1, species2) %>% unique()
+  tmeta <- igraph::graph_from_data_frame(temp, directed = FALSE)
+  tbig <- igraph::graph_from_incidence_matrix(table(temp))
+
+  V(tmeta)$component <- components(tmeta)$membership
+  tmeta <- igraph::delete.vertices(tmeta, V(tmeta)$component != which.max(components(tmeta)$csize))
+
+  tmetaCent <- data.frame(
+    between = igraph::centralization.betweenness(tmeta)$res,
+    close   = igraph::centralization.closeness(tmeta)$res,
+    deg     = igraph::centralization.degree(tmeta, mode = "all")$res,
+    eig     = igraph::centralization.evcent(tmeta)$vector,
+    node    = V(tmeta)$name,
+    site_index = i
+  )
+
+  # Null model simulation
   nullsetup <- nullmodel(table(temp), method = "quasiswap")
-  out <- simulate(nullsetup, nsim=1000) #Set up our null model object (see vegan vignette)
-  for(simID in 1:1000){
-    rg <- igraph::graph_from_incidence_matrix(out[,,simID])
-    V(rg)$component <- components(rg)$membership #Assign component membership
-    rg <- delete.vertices(rg, V(rg)$component!=which.max(components(rg)$csize)) #Remove vertices that aren't included in the largest component    
-    rgCent <- data.frame(between=igraph::centralization.betweenness(rg)$res,
-                 close=igraph::centralization.closeness(rg)$res,
-                 deg=igraph::centralization.degree(rg, mode="all")$res,
-                 eig=igraph::centralization.evcent(rg)$vector,
-                 site_index=i, #Grab the site
-                 sim=simID,
-                 node=V(rg)$name) #Which simulation is this
-    rndout <- rbind(rgCent, rndout)
-  }
-  #Calculate the z-score
-  tmetaCent$z.close <- NA
-  for(j in 1:nrow(tmetaCent)){ #Perform ranking for each node
-    ret <- dplyr::filter(rndout, node==tmetaCent$node[j]) #Find all of the simulated values for a given node
-    emp <- dplyr::filter(tmetaCent, node==tmetaCent$node[j]) #Grab the empirical value
-    #tmetaCent$z.close[tmetaCent$node==ret$node[j]] <-sum(emp$close>ret$close)/length(ret$close) #Previous version based on ranking assign a z-score based on empirical value
-    tmetaCent$z.close[tmetaCent$node==ret$node[j]] <- (emp$close - mean(ret$close))/sd(ret$close) #Updated; z-score based on normality
-    tmetaCent$z.close.sd <- sd(ret$close)
-  }
-  #Save our local metric to the larger dataset
-  localbCent <- rbind(localbCent, tmetaCent)
-}
+  sims <- simulate(nullsetup, nsim = 20)
+  rndout <- list()
 
-length(unique(rndout$node))
+  for (simID in 1:20) {
+    rg <- igraph::graph_from_incidence_matrix(sims[,,simID])
+    V(rg)$component <- components(rg)$membership
+    rg <- delete.vertices(rg, V(rg)$component != which.max(components(rg)$csize))
 
-save(localbCent, localiCent, file="data/z_localCent_Zupdated.RDA")
+    rgCent <- data.frame(
+      between = igraph::centralization.betweenness(rg)$res,
+      close   = igraph::centralization.closeness(rg)$res,
+      deg     = igraph::centralization.degree(rg, mode = "all")$res,
+      eig     = igraph::centralization.evcent(rg)$vector,
+      site_index = i,
+      sim = simID,
+      node = V(rg)$name
+    )
+
+    rndout[[simID]] <- rgCent
+  }
+
+  rndout_df <- do.call(rbind, rndout)
+
+  # Z-score for closeness
+  tmetaCent$z.close <- sapply(tmetaCent$node, function(n) {
+    sim_vals <- dplyr::filter(rndout_df, node == n)
+    emp_val  <- dplyr::filter(tmetaCent, node == n)
+    if (nrow(sim_vals) > 1 && sd(sim_vals$close, na.rm = TRUE) > 0) {
+      (emp_val$close - mean(sim_vals$close, na.rm = TRUE)) / sd(sim_vals$close, na.rm = TRUE)
+    } else {
+      NA
+    }
+  })
+
+  return(tmetaCent)
+})
+
+# Stop the cluster
+stopCluster(cl)
+
+# Combine all results
+localiCent <- do.call(rbind, localiCent_list)
+
+
+
+ ########NOW BIRDS
+# Get unique site indices
+site_indices <- unique(Birdweb$site_index)
+
+# Setup cluster
+n_cores <- detectCores() - 1
+cl <- makeCluster(n_cores)
+
+# Export necessary variables and functions to workers
+clusterExport(cl, varlist = c("Birdweb"), envir = environment())
+clusterEvalQ(cl, {
+  library(igraph)
+  library(vegan)
+  library(dplyr)
+})
+
+# Parallelized version of your per-site loop
+localbCent_list <- parLapply(cl, site_indices, function(i) {
+  temp <- Birdweb[Birdweb$site_index == i, ]
+  if (nrow(temp) < 4) return(NULL)
+
+  temp <- dplyr::select(temp, species1, species2) %>% unique()
+  tmeta <- igraph::graph_from_data_frame(temp, directed = FALSE)
+  tbig <- igraph::graph_from_incidence_matrix(table(temp))
+
+  V(tmeta)$component <- components(tmeta)$membership
+  tmeta <- igraph::delete.vertices(tmeta, V(tmeta)$component != which.max(components(tmeta)$csize))
+
+  tmetaCent <- data.frame(
+    between = igraph::centralization.betweenness(tmeta)$res,
+    close   = igraph::centralization.closeness(tmeta)$res,
+    deg     = igraph::centralization.degree(tmeta, mode = "all")$res,
+    eig     = igraph::centralization.evcent(tmeta)$vector,
+    node    = V(tmeta)$name,
+    site_index = i
+  )
+
+  # Null model simulation
+  nullsetup <- nullmodel(table(temp), method = "quasiswap")
+  sims <- simulate(nullsetup, nsim = 20)
+  rndout <- list()
+
+  for (simID in 1:20) {
+    rg <- igraph::graph_from_incidence_matrix(sims[,,simID])
+    V(rg)$component <- components(rg)$membership
+    rg <- delete.vertices(rg, V(rg)$component != which.max(components(rg)$csize))
+
+    rgCent <- data.frame(
+      between = igraph::centralization.betweenness(rg)$res,
+      close   = igraph::centralization.closeness(rg)$res,
+      deg     = igraph::centralization.degree(rg, mode = "all")$res,
+      eig     = igraph::centralization.evcent(rg)$vector,
+      site_index = i,
+      sim = simID,
+      node = V(rg)$name
+    )
+
+    rndout[[simID]] <- rgCent
+  }
+
+  rndout_df <- do.call(rbind, rndout)
+
+  # Z-score for closeness
+  tmetaCent$z.close <- sapply(tmetaCent$node, function(n) {
+    sim_vals <- dplyr::filter(rndout_df, node == n)
+    emp_val  <- dplyr::filter(tmetaCent, node == n)
+    if (nrow(sim_vals) > 1 && sd(sim_vals$close, na.rm = TRUE) > 0) {
+      (emp_val$close - mean(sim_vals$close, na.rm = TRUE)) / sd(sim_vals$close, na.rm = TRUE)
+    } else {
+      NA
+    }
+  })
+
+  return(tmetaCent)
+})
+
+# Stop the cluster
+stopCluster(cl)
+
+# Combine all results
+localbCent <- do.call(rbind, localbCent_list)
+
+#save(localbCent, localiCent, file="data/z_localCent_Zupdated.RDA")
 ```
 
 Analyzing the output of our z-transformation of local centrality measures. 

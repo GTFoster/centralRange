@@ -1,0 +1,1085 @@
+---
+title: "Clean Analysis"
+author: "Grant Foster"
+date: "2025-06-17"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load Libraries
+```{r}
+library(igraph)
+#library(dplyr)
+#library(ggplot2)
+library(gridExtra)
+library(rgbif)
+library(curl)
+#library(tidyr)
+library(jsonlite)
+library(tidyverse)
+library(taxize)
+library(vegan)
+library(randomForest)
+library(gridExtra)
+```
+
+
+## Data Prep
+Let's start with querying WOL for plant-pollinator datasets. 
+
+Querying the web of life API. 
+Tutorial for how to do this found here: https://www.web-of-life.es/tutorial/session-download-data.html
+```{r, eval=F}
+# define the base url
+base_url <- "https://www.web-of-life.es/"   
+json_url2 <- paste0(base_url,"get_networks.php?interaction_type=Pollination") 
+
+WolPols <- jsonlite::fromJSON(json_url2)
+WolMeta <- read.csv(paste0(base_url,"get_network_info.php")) %>%dplyr::filter(., network_type%in%"Pollination")
+length(unique(WolPols$network_name)) # 174 Networks
+
+WolMeta <- read.csv(paste0(base_url,"get_network_info.php"))
+WolMeta <- WolMeta %>% dplyr::filter(., network_type%in%"Pollination") #Make sure we have only pollination
+WolMeta <- WolMeta %>% 
+  #dplyr::select(., network_name, region, latitude, longitude) %>% 
+  left_join(WolPols, ., by="network_name")
+#WolMeta <- dplyr::select(WolMeta, -Taxa.y) %>% dplyr::rename(., Taxa=Taxa.x)
+```
+
+Let's do some double checking to 
+1) Separate vertebrate from invertebrate pollination networks
+%2) Make different sources are correctly harmonized #Turns out these are the new deal
+
+I was first going check every taxa with taxize, but turns out this actually takes a long time to run with so many taxa. Instead, I looked at the original papers for the 74 publications included in these data. Slow, but still faster than taxize. I load in the key I created for that below. 
+
+```{r, eval=FALSE}
+studykey <- read.csv(file="studykey.csv")
+WolMeta <- left_join(WolMeta, studykey, by=c("author", "reference"))
+
+WolMeta<- dplyr::filter(WolMeta, grepl("Unidentified", species2, ignore.case=F)==F) #remove unidentified
+WolMeta<- dplyr::filter(WolMeta, grepl(" sp[1-9]+", species2, ignore.case=F)==F) #remove those with polls identified to genera only
+WolMeta<- dplyr::filter(WolMeta, grepl(" sp[1-9]+", species1, ignore.case=F)==F) #remove those plants identified to genera only
+#Interesting to evaluate whether to do this on a local level, but necessary with global metaweb (sp1 in one network may be sp2 in another, etc)
+
+mixedwebs <- dplyr::filter(WolMeta, Taxa=="Mixed")
+Insectweb <- dplyr::filter(WolMeta, Taxa=="Insecta")
+Birdweb <- dplyr::filter(WolMeta, Taxa=="Aves")
+
+Insectweb <- dplyr::filter(mixedwebs, grepl(c("Apis"), species2)==T | grepl(c("Ornidia"), species2)==T | grepl(c("Bombus"), species2)==T | grepl(c("Musca"), species2)==T ) %>% rbind(Insectweb, .) #Add in some common insect genera from mixed webs
+
+mixedwebs <- dplyr::filter(mixedwebs, grepl(c("Apis"), species2)==F & grepl(c("Ornidia"), species2)==F & grepl(c("Bombus"), species2)==F & grepl(c("Musca"), species2)==F ) #Remove these from the to-query group
+
+
+mixedord <- tax_name(unique(mixedwebs$species2), get = "class", db = "ncbi")
+
+missing <- dplyr::filter(mixedord, is.na(class)==T)
+missing$query[missing$query=="Politmus milleri"] <- "Polytmus milleri" #Mispelled bird
+missing$query[missing$query=="Physiphoa azurea"] <- "Physiphora azurea " #Mispelled fly
+
+missing$gen <- gsub( " .*$", "", missing$query) 
+gens <- data.frame(gen=missing$gen, class=NA) %>% unique()
+gens <- dplyr::filter(gens, gen %in% c("Clamirius", "Eurymetopun")==F) #Can't find these
+
+gens$class[gens$gen%in%c("Amazilia", "Carduelis", "Foudia", "Polytmus")] <- "Aves" #The birds in the list
+gens$class[is.na(gens$class)==T] <- "Insect" #Everything left is an insect 
+
+missing <- missing %>% dplyr::select(., -class) %>% left_join(., gens, by="gen") %>% na.omit() #Grab the missing classes
+
+Birdweb  <- dplyr::filter(mixedwebs, species2 %in% missing$query[missing$class=="Aves"]) %>%
+  rbind(Birdweb,.)
+Insectweb <- dplyr::filter(mixedwebs, species2 %in% missing$query[missing$class=="Insecta"]) %>%
+  rbind(Insectweb,.)
+
+#Now that we've done our filtering, let's check out our two created metawebs
+InsectMeta <- dplyr::select(Insectweb, species1, species2) %>% unique()
+imeta <- igraph::graph_from_data_frame(InsectMeta, directed=F) #Create igraph object
+
+
+BirdMeta <- dplyr::select(Birdweb, species1, species2) %>% unique()
+bmeta <- igraph::graph_from_data_frame(BirdMeta, directed=F) #Create igraph object
+
+
+
+#Creating the site index
+Birdweb <- Birdweb %>%
+  group_by(latitude, longitude) %>%
+  mutate(site_index = cur_group_id()) %>%
+  ungroup()
+
+Insectweb <- Insectweb %>%
+  group_by(latitude, longitude) %>%
+  mutate(site_index = cur_group_id()) %>%
+  ungroup()
+
+save(InsectMeta, imeta, BirdMeta, bmeta, file="cleanData/metawebs.RDA")
+save(Birdweb, Insectweb, file="cleanData/localwebs.RDA") #Save the individual webs
+```
+
+A quick check-in point, loading in our metaweb data (both in igraph and df forms)
+```{r}
+load("cleanData/metawebs.RDA")
+```
+
+Computing Baseline Centrality Metrics on the Metawebs
+
+First need to drop disconnected components
+```{r, eval=FALSE}
+V(imeta)$component <- components(imeta)$membership
+#components(imeta)$csize #Largest component has 6237 nodes; the rest are isolated pairs
+imeta <- delete.vertices(imeta, V(imeta)$component!=which.max(components(imeta)$csize)) #Remove vertices that aren't included in the largest component
+#table(V(imeta)$component)
+
+V(bmeta)$component <- components(bmeta)$membership
+#components(bmeta)$csize #Largest component has 719 nodes; the rest are isolated pairs
+bmeta <- delete.vertices(bmeta, V(bmeta)$component!=which.max(components(bmeta)$csize)) #Remove vertices that aren't included in the largest component
+#table(V(bmeta)$component)
+```
+
+Now that we have singular components we can calculate centrality for each of these networks. imetaCent/bmetaCent are our main units of analysis for our metaweb metrics. 
+```{r, eval=FALSE}
+imetaCent <- data.frame(between=igraph::centralization.betweenness(imeta)$res,
+           close=igraph::centralization.closeness(imeta)$res,
+           deg=igraph::centralization.degree(imeta, mode="all")$res,
+           eig=igraph::centralization.evcent(imeta)$vector,
+           node=V(imeta)$name)
+
+bmetaCent <- data.frame(between=igraph::centralization.betweenness(bmeta)$res,
+           close=igraph::centralization.closeness(bmeta)$res,
+           deg=igraph::centralization.degree(bmeta, mode="all")$res,
+           eig=igraph::centralization.evcent(bmeta)$vector,
+           node=V(bmeta)$name)
+```
+
+
+Contending with Range size: 
+
+```{r, eval=FALSE}
+georng <- read.csv(file="data/geosummaryout.csv") 
+envrng <- read.csv(file="data/envsummaryout.csv")
+
+envrng$node <- envrng$file #file contains the queried node name
+envrng$node <- gsub("_", " ", envrng$node) #this and below some string manipulations for joins
+envrng$node <- gsub(".csv", "", envrng$node)
+envrng$node <- paste(toupper(substring(envrng$node, 1, 1)), substring(envrng$node, 2), sep="")
+
+imetaCent <- dplyr::select(envrng, envarea, node) %>% left_join(imetaCent, ., by="node") #Add in environmental ranges
+bmetaCent <- dplyr::select(envrng, envarea, node) %>% left_join(bmetaCent, ., by="node")
+ 
+
+globgeo <- georng %>% 
+  dplyr::group_by(., file) %>% 
+  dplyr::summarise(., globkm=sum(contgeokm.area)) #Combine individual continent ranges into single range size value
+
+globgeo$node <- globgeo$file
+globgeo$node <- gsub("_", " ", globgeo$node)
+globgeo$node <- gsub(".csv", "", globgeo$node)
+globgeo$node <- paste(toupper(substring(globgeo$node, 1, 1)), substring(globgeo$node, 2), sep="") 
+globgeo <- dplyr::select(globgeo, -file)
+
+imetaCent <- left_join(imetaCent, globgeo, by="node") #add geo ranges
+bmetaCent <- left_join(bmetaCent, globgeo, by="node")
+
+rm(envrng, georng, globgeo) #Now that we've joined, removing for clutter
+```
+
+Adding a type argument for ease of use
+```{r, eval=FALSE}
+imetaCent$type <- NA
+imetaCent$type[imetaCent$node %in% Insectweb$species1] <- "Plant"
+imetaCent$type[imetaCent$node %in% Insectweb$species2] <- "Insect"
+
+bmetaCent$type <- NA
+bmetaCent$type[bmetaCent$node %in% Birdweb$species1] <- "Plant"
+bmetaCent$type[bmetaCent$node %in% Birdweb$species2] <- "Bird"
+```
+
+Now, let's work on getting a z-standardization for species centrality in the metaweb. The following code shuffles individual local webs (maintaining rown and columnsums), recombines them into a new simulated metaweb, and calculates species centrality in that created web. This is done for an arbitrary number of times (2k), creating a distribution we can use for z-standardization. This is parallalelized for speed, and outputs are provided.
+```{r, eval=FALSE}
+library(parallel)
+library(igraph)
+library(dplyr)
+
+#Most of the parallel version of this code was written by ChatGPT using the following prompt:Hey ChatGPT, use the parallel package in R to parallelize this code across an arbitrary number of cores. 
+
+load(file="cleanData/localwebs.RDA")
+
+# Define number of cores and simulations
+ncores <- detectCores() - 2 #leave an extra core to appease the daemons
+cl <- makeCluster(ncores)
+
+clusterEvalQ(cl, { #Make sure workers have necessary libraries
+  library(igraph)
+  library(dplyr)
+  library(vegan)
+})
+
+# Export necessary data and functions to the cluster
+clusterExport(cl, varlist = c("Birdweb", "Insectweb"))
+
+# Function to process Birdweb simulations
+bird_sim_fun <- function(i) {
+  Vset <- NULL
+  Eset <- NULL
+  #lay <- layout_as_bipartite(rg)
+  for (j in unique(Birdweb$site_index)) {
+    temp <- Birdweb[Birdweb$site_index == j, ]
+    if (nrow(temp) < 3) next
+    temp <- dplyr::select(temp, species1, species2) %>% unique()
+    nullsetup <- vegan::nullmodel(table(temp), method = "quasiswap")
+    out <- simulate(nullsetup, nsim = 1)
+    if(j!=20) {rg <- igraph::graph_from_incidence_matrix(out[, , 1])}
+    if(j==20) {rg <- igraph::graph_from_incidence_matrix(table(temp$species1, temp$species2))}
+    
+    #plot(rg, layout=lay)
+    Vtemp <- igraph::as_data_frame(rg, "vertices") %>% unique()
+    Vset <- rbind(Vset, Vtemp) #Vertex list across all sites
+    Etemp <- igraph::as_data_frame(rg)
+    Eset <- rbind(Eset, Etemp) #Edge list across all sites
+    print(j)
+  }
+  if (is.null(Eset) || is.null(Vset)) return(NULL)
+  Vset <- unique(Vset)
+  Eset <- unique(Eset)
+  metatemp <- graph_from_data_frame(Eset, directed = FALSE, vertices = Vset$name)
+  
+  bmetaCent_temp <- data.frame(
+    between = igraph::centralization.betweenness(metatemp)$res,
+    close   = igraph::centralization.closeness(metatemp)$res,
+    deg     = igraph::centralization.degree(metatemp, mode = "all")$res,
+    eig     = igraph::centralization.evcent(metatemp)$vector,
+    node    = V(metatemp)$name,
+    indexID = i
+  )
+  return(bmetaCent_temp)
+}
+
+# # Function to process Insectweb simulations
+insect_sim_fun <- function(i) {
+  Vset <- NULL
+  Eset <- NULL
+
+  for (j in unique(Insectweb$site_index)) {
+    print(paste("starting", j))
+    temp <- Insectweb[Insectweb$site_index == j, ]
+    if (nrow(temp) < 3) next
+    temp <- dplyr::select(temp, species1, species2) %>% unique()
+    nullsetup <- vegan::nullmodel(table(temp), method = "greedyqswap")
+    if (nullsetup$ncol == 1 || nullsetup$nrow == 1) next
+    out <- simulate(nullsetup, nsim = 1, thin=1)
+    if(j!="space") {rg <- igraph::graph_from_incidence_matrix(out[, , 1])}
+    #if(j==47) {rg <- igraph::graph_from_incidence_matrix(table(temp$species1, temp$species2))}
+    #rg <- igraph::graph_from_incidence_matrix(out[, , 1])
+    Vtemp <- igraph::as_data_frame(rg, "vertices") %>% unique()
+    Vset <- rbind(Vset, Vtemp)
+    Etemp <- igraph::as_data_frame(rg)
+    Eset <- rbind(Eset, Etemp)
+  }
+  if (is.null(Eset) || is.null(Vset)) return(NULL)
+  Vset <- unique(Vset)
+  Eset <- unique(Eset)
+  metatemp <- graph_from_data_frame(Eset, directed = FALSE, vertices = Vset$name)
+
+  imetaCent_temp <- data.frame(
+    between = igraph::centralization.betweenness(metatemp)$res,
+    close   = igraph::centralization.closeness(metatemp)$res,
+    deg     = igraph::centralization.degree(metatemp, mode = "all")$res,
+    eig     = igraph::centralization.evcent(metatemp)$vector,
+    node    = V(metatemp)$name,
+    indexID = i
+  )
+  return(imetaCent_temp)
+}
+
+# Run simulations in parallel
+nsim <- 2000
+bmetaCent_list <- parLapply(cl, 1:nsim, bird_sim_fun)
+imetaCent_list <- parLapply(cl, 1:nsim, insect_sim_fun)
+
+
+# Combine and post-process
+bmetaCent_null <- do.call(rbind, bmetaCent_list)
+imetaCent_null <- do.call(rbind, imetaCent_list)
+
+# Save results
+save(bmetaCent_null, file = "cleanData/BmetawebSwaps_raw2k_newrun.Rda") #Save the output
+save(imetaCent_null, file = "cleanData/ImetawebSwaps_raw2k_newrun.Rda")
+
+# Stop the cluster
+stopCluster(cl)
+
+```
+
+
+Now adding in the output of z-standardization
+
+```{r, eval=FALSE}
+load(file="cleanData/BmetawebSwaps_raw2k.Rda")
+load(file="cleanData/ImetawebSwaps_raw2k.Rda")
+
+bsums <- dplyr::group_by(bmetaCent_null, node) %>%
+  dplyr::summarise(., meancl=mean(close), sdcl=sd(close)) #summarise the individual
+
+bmetaCent <- left_join(bmetaCent,bsums, by="node")
+bmetaCent$close.z <- (bmetaCent$close-bmetaCent$meancl)/bmetaCent$sdcl
+
+isums <- dplyr::group_by(imetaCent_null, node) %>%
+  dplyr::summarise(., meancl=mean(close), sdcl=sd(close)) #summarise the individual
+
+imetaCent <- left_join(imetaCent,isums, by="node")
+imetaCent$close.z <- (imetaCent$close-imetaCent$meancl)/imetaCent$sdcl
+
+rm(imetaCent_null, isums, bmetaCent_null, bsums) #remove intermediate objects to reduce clutter
+
+save(imetaCent, imeta, bmetaCent, bmeta, file="cleanData/metaCent.Rda") #Saving the output
+```
+
+Load in our objects from above.
+```{r}
+load("cleanData/metaCent.Rda")
+load(file="cleanData/localwebs.RDA")
+```
+
+Our metaweb should be ready for analysis. Now let's work on our local webs.
+```{r, eval=FALSE}
+# Get unique site indices
+site_indices <- unique(Insectweb$site_index)
+
+# Setup cluster
+n_cores <- detectCores() - 1
+cl <- makeCluster(n_cores)
+
+# Export necessary variables and functions to workers
+clusterExport(cl, varlist = c("Insectweb"), envir = environment())
+clusterEvalQ(cl, {
+  library(igraph)
+  library(vegan)
+  library(dplyr)
+})
+
+# Parallelized version of your per-site loop
+localiCent_list <- parLapply(cl, site_indices, function(i) {
+  temp <- Insectweb[Insectweb$site_index == i, ]
+  if (nrow(temp) < 4) return(NULL)
+
+  temp <- dplyr::select(temp, species1, species2) %>% unique()
+  tmeta <- igraph::graph_from_data_frame(temp, directed = FALSE)
+  tbig <- igraph::graph_from_incidence_matrix(table(temp))
+
+  V(tmeta)$component <- components(tmeta)$membership
+  tmeta <- igraph::delete.vertices(tmeta, V(tmeta)$component != which.max(components(tmeta)$csize))
+
+  tmetaCent <- data.frame(
+    between = igraph::centralization.betweenness(tmeta)$res,
+    close   = igraph::centralization.closeness(tmeta)$res,
+    deg     = igraph::centralization.degree(tmeta, mode = "all")$res,
+    eig     = igraph::centralization.evcent(tmeta)$vector,
+    node    = V(tmeta)$name,
+    site_index = i
+  )
+
+  # Null model simulation
+  nullsetup <- nullmodel(table(temp), method = "quasiswap")
+  sims <- simulate(nullsetup, nsim = 1000)
+  rndout <- list()
+
+  for (simID in 1:1000) {
+    rg <- igraph::graph_from_incidence_matrix(sims[,,simID])
+    V(rg)$component <- components(rg)$membership
+    rg <- delete.vertices(rg, V(rg)$component != which.max(components(rg)$csize))
+
+    rgCent <- data.frame(
+      between = igraph::centralization.betweenness(rg)$res,
+      close   = igraph::centralization.closeness(rg)$res,
+      deg     = igraph::centralization.degree(rg, mode = "all")$res,
+      eig     = igraph::centralization.evcent(rg)$vector,
+      site_index = i,
+      sim = simID,
+      node = V(rg)$name
+    )
+
+    rndout[[simID]] <- rgCent
+  }
+
+  rndout_df <- do.call(rbind, rndout)
+
+  # Z-score for closeness
+  tmetaCent$z.close <- sapply(tmetaCent$node, function(n) {
+    sim_vals <- dplyr::filter(rndout_df, node == n)
+    emp_val  <- dplyr::filter(tmetaCent, node == n)
+    if (nrow(sim_vals) > 1 && sd(sim_vals$close, na.rm = TRUE) > 0) {
+      (emp_val$close - mean(sim_vals$close, na.rm = TRUE)) / sd(sim_vals$close, na.rm = TRUE)
+    } else {
+      NA
+    }
+  })
+
+  return(tmetaCent)
+})
+
+# Stop the cluster
+stopCluster(cl)
+
+# Combine all results
+localiCent <- do.call(rbind, localiCent_list)
+
+
+
+ ########NOW BIRDS
+# Get unique site indices
+site_indices <- unique(Birdweb$site_index)
+
+# Setup cluster
+n_cores <- detectCores() - 1
+cl <- makeCluster(n_cores)
+
+# Export necessary variables and functions to workers
+clusterExport(cl, varlist = c("Birdweb"), envir = environment())
+clusterEvalQ(cl, {
+  library(igraph)
+  library(vegan)
+  library(dplyr)
+})
+
+# Parallelized version of your per-site loop
+localbCent_list <- parLapply(cl, site_indices, function(i) {
+  temp <- Birdweb[Birdweb$site_index == i, ]
+  if (nrow(temp) < 4) return(NULL)
+
+  temp <- dplyr::select(temp, species1, species2) %>% unique()
+  tmeta <- igraph::graph_from_data_frame(temp, directed = FALSE)
+  tbig <- igraph::graph_from_incidence_matrix(table(temp))
+
+  V(tmeta)$component <- components(tmeta)$membership
+  tmeta <- igraph::delete.vertices(tmeta, V(tmeta)$component != which.max(components(tmeta)$csize))
+
+  tmetaCent <- data.frame(
+    between = igraph::centralization.betweenness(tmeta)$res,
+    close   = igraph::centralization.closeness(tmeta)$res,
+    deg     = igraph::centralization.degree(tmeta, mode = "all")$res,
+    eig     = igraph::centralization.evcent(tmeta)$vector,
+    node    = V(tmeta)$name,
+    site_index = i
+  )
+
+  # Null model simulation
+  nullsetup <- nullmodel(table(temp), method = "quasiswap")
+  sims <- simulate(nullsetup, nsim = 1000) #Grab 1k simulations
+  rndout <- list()
+
+  for (simID in 1:1000) { #Go through each local simulation and find the z-score
+    rg <- igraph::graph_from_incidence_matrix(sims[,,simID])
+    V(rg)$component <- components(rg)$membership
+    rg <- delete.vertices(rg, V(rg)$component != which.max(components(rg)$csize))
+
+    rgCent <- data.frame(
+      between = igraph::centralization.betweenness(rg)$res,
+      close   = igraph::centralization.closeness(rg)$res,
+      deg     = igraph::centralization.degree(rg, mode = "all")$res,
+      eig     = igraph::centralization.evcent(rg)$vector,
+      site_index = i,
+      sim = simID,
+      node = V(rg)$name
+    )
+
+    rndout[[simID]] <- rgCent
+  }
+
+  rndout_df <- do.call(rbind, rndout)
+
+  # Z-score for closeness
+  tmetaCent$z.close <- sapply(tmetaCent$node, function(n) {
+    sim_vals <- dplyr::filter(rndout_df, node == n)
+    emp_val  <- dplyr::filter(tmetaCent, node == n)
+    if (nrow(sim_vals) > 1 && sd(sim_vals$close, na.rm = TRUE) > 0) {
+      (emp_val$close - mean(sim_vals$close, na.rm = TRUE)) / sd(sim_vals$close, na.rm = TRUE)
+    } else {
+      NA
+    }
+  })
+
+  return(tmetaCent)
+})
+
+# Stop the cluster
+stopCluster(cl)
+rm(cl)
+
+# Combine all results
+localbCent <- do.call(rbind, localbCent_list)
+
+```
+
+Now that we've got the z-transformed versions of our local centrality, we can add back in our range data. 
+```{r, eval=FALSE}
+localbCent <- bmetaCent %>% 
+  dplyr::select(., node, envarea, globkm) %>% #add in ranges
+  left_join(localbCent, by="node")
+
+localiCent <- imetaCent %>% 
+  dplyr::select(., node, envarea, globkm) %>% #add in ranges
+  left_join(localiCent, by="node")
+save(localiCent, localbCent, file="cleanData/localCentrality.Rda")
+```
+
+Now we can load in data back for our local networks
+```{r}
+rm(InsectMeta, BirdMeta) #remove objects used for making these
+load(file="cleanData/localCentrality.Rda")
+```
+
+
+## Analysis
+```{r}
+imetaCent$net <- "Insect"
+bmetaCent$net <- "Bird"
+
+compositeMeta <- rbind(imetaCent, bmetaCent) %>% dplyr::filter(., is.na(envarea)==F)
+compositeMeta$type[compositeMeta$type %in% c("Insect", "Bird")] <- "Floral Visitor"
+```
+
+
+Linear models for the effect of range size on centrality of each of our network X nodetype combinations
+```{r, eval=FALSE}
+#Raw values
+insectVisitor <- imetaCent %>% dplyr::filter(., type=="Insect") %>%
+  lm(data=., formula=close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)))
+summary(insectVisitor)
+
+insectPlant <- imetaCent %>% dplyr::filter(., type=="Plant") %>%
+  lm(data=., formula=close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)))
+summary(insectPlant)
+
+birdVisitor <- bmetaCent %>% #dplyr::filter(., type=="Bird") %>%
+  lm(data=., formula=close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)))
+summary(birdVisitor)
+
+birdPlant <- bmetaCent %>% dplyr::filter(., type=="Plant") %>%
+  lm(data=., formula=close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)))
+summary(birdPlant)
+
+#Z-transformations
+insectVisitor.z <- imetaCent %>% dplyr::filter(., type=="Insect") %>%
+  lm(data=., formula=close.z~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)))
+summary(insectVisitor.z)
+
+insectPlant.z <- imetaCent %>% dplyr::filter(., type=="Plant") %>%
+  lm(data=., formula=close.z~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)))
+summary(insectPlant.z)
+
+birdVisitor.z <- bmetaCent %>% dplyr::filter(., type=="Bird") %>%
+  lm(data=., formula=close.z~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)))
+summary(birdVisitor.z)
+
+birdPlant.z <- bmetaCent %>% dplyr::filter(., type=="Plant") %>%
+  lm(data=., formula=close.z~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)))
+summary(birdPlant.z)
+
+car::vif(insectVisitor, type="predictor")
+car::vif(insectPlant, type="predictor")
+car::vif(birdVisitor, type="predictor")
+car::vif(birdPlant, type="predictor")
+
+car::vif(insectVisitor.z, type="predictor")
+car::vif(insectPlant.z, type="predictor")
+car::vif(birdVisitor.z, type="predictor")
+car::vif(birdPlant.z, type="predictor")
+```
+
+
+```{r}
+#Sig in geo raw: Visiting Insects, Insect-Visited Plants, Bird-Visited Plants
+clrs <- c("#845ec2", "#00896f")
+  
+geoRngMeta <- compositeMeta %>% 
+  ggplot(., aes(x=scale(log(globkm)), y=close, col=net))+
+  geom_point(alpha=0.7)+
+  geom_smooth(method="lm", data=dplyr::filter(compositeMeta, type!="Floral Visitor" | net=="Insect"))+ #Remove insignificant coefficients from the lm data
+  facet_wrap(~type, labeller = labeller(type = c("Floral Visitors", "Plants")))+
+  theme_classic()+
+  xlab("Scaled Log Geographic Area")+
+  ylab("Closeness Centrality in \n Global Metaweb ")+guides(col=guide_legend(title="MetaNetwork"))+
+  scale_color_manual(labels = c("Avian-Plant", "Insect-Plant"), values = clrs)+
+  theme(legend.position=c(0.15,.85), guide_legend(override.aes=list(fill=NA)))+
+       theme(strip.text.x = element_text(size = 14))
+
+#Sig in env raw: Insect-Visited Plants
+envRngMeta <- compositeMeta %>% 
+  ggplot(., aes(x=scale(log(envarea)), y=close, col=net))+
+  geom_point(alpha=0.7)+
+  geom_smooth(method="lm", data=dplyr::filter(compositeMeta, type=="Plant" & net=="Insect"))+
+  facet_wrap(~type)+
+  theme_classic()+
+  xlab("Scaled Log Environmental Area")+
+  ylab("Closeness Centrality in \n Global Metaweb ")+guides(col="none")+
+  scale_color_manual(labels = c("Avian-Plant", "Insect-Plant"), values = clrs)+
+       theme(strip.text.x = element_text(size = 14))
+
+#Sig in geo.z: Bird-Visited Plants
+geoRngMeta.z <- compositeMeta %>% 
+  ggplot(., aes(x=scale(log(globkm)), y=close.z, col=net))+
+  geom_point(alpha=0.7)+
+  geom_smooth(method="lm", data=dplyr::filter(compositeMeta, type=="Plant" & net=="Bird"))+
+  facet_wrap(~type)+
+  theme_classic()+
+  xlab("Scaled Log Geographic Area")+
+  ylab("Closeness Centrality in \n Global Metaweb (Z-transformed)")+guides(col="none")+
+  scale_color_manual(labels = c("Avian-Plant", "Insect-Plant"), values = clrs)+
+       theme(strip.text.x = element_text(size = 14))
+
+#Sig in env.z: Insect-Visited Plants, Bird-Visited Plants
+envRngMeta.z <- compositeMeta %>% 
+  ggplot(., aes(x=scale(log(envarea)), y=close.z, col=net))+
+  geom_point(alpha=0.7)+
+  geom_smooth(method="lm", data=dplyr::filter(compositeMeta, type=="Plant"))+
+  facet_wrap(~type)+
+  theme_classic()+
+  xlab("Scaled Log Environmental Area")+
+  ylab("Closeness Centrality in \n Global Metaweb (Z-transformed)")+guides(col="none")+
+  scale_color_manual(labels = c("Avian-Plant", "Insect-Plant"), values = clrs)+
+       theme(strip.text.x = element_text(size = 14))
+
+#pdf(file="cleanFigs/MetawebCentralityPlot.pdf", width=10, height=8)
+grid.arrange(geoRngMeta, geoRngMeta.z, envRngMeta, envRngMeta.z, nrow=2)
+#dev.off()
+```
+
+Now looking at the local networks. Let's create a compositeLocal object we can use as our unit of analysis. 
+```{r}
+localiCent$net <- "Insect"
+localbCent$net <- "Bird"
+
+localiCent$type <- NA
+localiCent$type[localiCent$node %in% Insectweb$species1] <- "Plant"
+localiCent$type[localiCent$node %in% Insectweb$species2] <- "Insect"
+
+localbCent$type <- NA
+localbCent$type[localbCent$node %in% Birdweb$species1] <- "Plant"
+localbCent$type[localbCent$node %in% Birdweb$species2] <- "Bird"
+
+compositeLocal <- rbind(localbCent, localiCent) %>% dplyr::filter(., is.na(net)==F)
+compositeLocal$type[compositeLocal$type %in% c("Insect", "Bird")] <- "Floral Visitor" 
+```
+
+
+```{r, eval=FALSE}
+#Raw values
+insectVisitorLocal <- localiCent %>% dplyr::filter(., type=="Insect") %>%
+  lm(data=., formula=close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)))
+summary(insectVisitorLocal)
+
+insectPlantLocal <- localiCent %>% dplyr::filter(., type=="Plant") %>%
+  lm(data=., formula=close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)))
+summary(insectPlantLocal)
+
+birdVisitorLocal <- localbCent %>% dplyr::filter(., type=="Bird") %>%
+  lm(data=., formula=close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)))
+summary(birdVisitorLocal)
+
+birdPlantLocal <- localbCent %>% dplyr::filter(., type=="Plant") %>%
+  lm(data=., formula=close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)))
+summary(birdPlantLocal)
+
+#Z-transformations
+insectVisitor.zLocal <- localiCent %>% dplyr::filter(., type=="Insect") %>%
+  lm(data=., formula=z.close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)))
+summary(insectVisitor.zLocal)
+
+insectPlant.zLocal <- localiCent %>% dplyr::filter(., type=="Plant") %>%
+  lm(data=., formula=z.close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)))
+summary(insectPlant.zLocal)
+
+birdVisitor.zLocal <- localbCent %>% dplyr::filter(., type=="Bird") %>%
+  lm(data=., formula=z.close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)))
+summary(birdVisitor.zLocal)
+
+birdPlant.zLocal <- localbCent %>% dplyr::filter(., type=="Plant") %>%
+  lm(data=., formula=z.close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)))
+summary(birdPlant.zLocal)
+
+car::vif(insectVisitorLocal, type="predictor")
+car::vif(insectVisitorLocal, type="predictor")
+car::vif(insectPlantLocal, type="predictor")
+car::vif(birdVisitorLocal, type="predictor")
+car::vif(birdPlantLocal, type="predictor")
+
+car::vif(insectVisitor.zLocal, type="predictor")
+car::vif(insectPlant.zLocal, type="predictor")
+car::vif(birdVisitor.zLocal, type="predictor")
+car::vif(birdPlant.zLocal, type="predictor")
+```
+
+
+Plotting the effects of range size on local centrality
+```{r}
+#Sig in geo raw: Insect Pollinators, Insect Pollinated Plants
+clrs <- c("#ad85ed", "#02b593")
+  
+geoRngLocal <- compositeLocal %>% 
+  ggplot(., aes(x=scale(log(globkm)), y=close, col=net))+
+  geom_point(alpha=0.4)+
+  geom_smooth(method="lm", data=dplyr::filter(compositeLocal, net=="Insect"))+ #Remove insignificant coefficients from the lm data
+  facet_wrap(~type, labeller = labeller(type = c("Floral Visitors", "Plants")))+
+  theme_classic()+
+  xlab("Scaled Log Geographic Area")+
+  ylab("Closeness Centrality in \n Local Web")+guides(col=guide_legend(title="MetaNetwork"))+
+  scale_color_manual(labels = c("Avian-Plant", "Insect-Plant"), values = clrs)+
+  theme(legend.position=c(0.15,.85), guide_legend(override.aes=list(fill=NA)))+
+       theme(strip.text.x = element_text(size = 14))
+
+#Sig in env raw: Insect Pollinated Plants
+envRngLocal <- compositeLocal %>% 
+  ggplot(., aes(x=scale(log(envarea)), y=close, col=net))+
+  geom_point(alpha=0.4)+
+  geom_smooth(method="lm", data=dplyr::filter(compositeLocal, type=="Plant" & net=="Insect"))+
+  facet_wrap(~type)+
+  theme_classic()+
+  xlab("Scaled Log Environmental Area")+
+  ylab("Closeness Centrality in \n Local Web")+guides(col="none")+
+  scale_color_manual(labels = c("Avian-Plant", "Insect-Plant"), values = clrs)+
+       theme(strip.text.x = element_text(size = 14))
+
+#Sig in geo.z: 
+geoRngLocal.z <- compositeLocal %>% 
+  ggplot(., aes(x=scale(log(globkm)), y=z.close, col=net))+
+  geom_point(alpha=0.4)+
+  #geom_smooth(method="lm", data=dplyr::filter(compositeLocal, type=="Plant" & net=="Bird"))+ #no sig relationships
+  facet_wrap(~type)+
+  theme_classic()+
+  xlab("Scaled Log Geographic Area")+
+  ylab("Closeness Centrality in \n Local Web (Z-transformed)")+guides(col="none")+
+  scale_color_manual(labels = c("Avian-Plant", "Insect-Plant"), values = clrs)+
+       theme(strip.text.x = element_text(size = 14))
+
+#Sig in env.z: Insect Pollinated Plants
+envRngLocal.z <- compositeLocal %>% 
+  ggplot(., aes(x=scale(log(envarea)), y=z.close, col=net))+
+  geom_point(alpha=0.4)+
+  geom_smooth(method="lm", data=dplyr::filter(compositeLocal, type=="Plant" & net=="Insect"))+
+  facet_wrap(~type)+
+  theme_classic()+
+  xlab("Scaled Log Environmental Area")+
+  ylab("Closeness Centrality in \n Local Web (Z-transformed)")+guides(col="none")+
+  scale_color_manual(labels = c("Avian-Plant", "Insect-Plant"), values = clrs)+
+       theme(strip.text.x = element_text(size = 14))
+
+#pdf(file="cleanFigs/LocalCentralityPlot.pdf", width=10, height=8)
+grid.arrange(geoRngLocal, geoRngLocal.z, envRngLocal, envRngLocal.z, nrow=2)
+#dev.off()
+
+#dev.off()
+#pdf(file="cleanFigs/LocalCentralityPlot_Small.pdf", width=10, height=8)
+grid.arrange(geoRngLocal.z, envRngLocal.z, nrow=2)
+#dev.off()
+```
+
+#Summary information
+```{r}
+cor.test(compositeMeta$globkm, compositeMeta$envarea)
+
+imetaCent <- localiCent %>% 
+  group_by(., node) %>% 
+  dplyr::summarise(., meanLocalclose=mean(close), sdLocalclose=sd(close)) %>% #grab average and sd of closeness across sites with multiple species. 
+  dplyr::left_join(imetaCent, ., by="node")
+
+cor.test(imetaCent$close, imetaCent$meanLocalclose)
+
+bmetaCent <- localbCent %>% 
+  group_by(., node) %>% 
+  dplyr::summarise(., meanLocalclose=mean(close), sdLocalclose=sd(close)) %>% #grab average and sd of closeness across sites with multiple species. 
+  dplyr::left_join(bmetaCent, ., by="node")
+
+cor.test(bmetaCent$close, bmetaCent$meanLocalclose)
+```
+
+Metaweb connectance
+```{r}
+nlinks <- Insectweb %>% select(., species1, species2) %>% unique() %>% nrow() #number of links
+nlinks/(length(unique(Insectweb$species1))*length(unique(Insectweb$species2))) #divided by total potential
+
+nlinks <- Birdweb %>% select(., species1, species2) %>% unique() %>% nrow() #number of links
+nlinks/(length(unique(Birdweb$species1))*length(unique(Birdweb$species2))) #divided by total potential
+
+rm(nlinks) #housekeeping
+```
+
+Connectance of local webs
+```{r}
+iCon <- NULL
+
+for(i in unique(Insectweb$site_index)){
+  tempweb <- dplyr::filter(Insectweb, site_index==i)
+  nlinks <- tempweb %>% select(., species1, species2) %>% unique() %>% nrow() #number of links
+  Ctemp <- nlinks/(length(unique(tempweb$species1))*length(unique(tempweb$species2))) #divided by total potential
+  iCon <- rbind(iCon, Ctemp)
+}
+
+bCon <- NULL
+for(i in unique(Birdweb$site_index)){
+  tempweb <- dplyr::filter(Birdweb, site_index==i)
+  nlinks <- tempweb %>% select(., species1, species2) %>% unique() %>% nrow() #number of links
+  Ctemp <- nlinks/(length(unique(tempweb$species1))*length(unique(tempweb$species2))) #divided by total potential
+  bCon <- rbind(bCon, Ctemp)
+}
+
+mean(iCon)
+mean(bCon)
+
+iConplot <- ggplot() + aes(iCon)+ 
+  geom_histogram(colour="black", fill="#00896f")+
+  ylab("Frequency")+
+  xlab("Connectance (Insect-Plant Network)")+theme_classic()
+
+bConplot <- ggplot() + aes(bCon)+ 
+  geom_histogram(colour="black", fill="#845ec2")+
+  ylab("Frequency")+
+  xlab("Connectance (Avian-Plant Network)")+theme_classic()
+
+#pdf(file="cleanFigs/LocalConnectanceDistributions.pdf", width=10, height=8)
+grid.arrange(iConplot, bConplot, nrow=1)
+#dev.off()
+rm(iCon, bCon, iConplot, bConplot)
+```
+
+Range sizes
+```{r}
+median(imetaCent$globkm, na.rm=T)
+range(imetaCent$globkm, na.rm=T)
+
+median(bmetaCent$globkm, na.rm=T)
+range(bmetaCent$globkm, na.rm=T)
+```
+
+
+Supplemental plots
+```{r}
+compositeLocal <- compositeLocal %>% 
+  dplyr::group_by(., node, net) %>% 
+  dplyr::mutate(., nsites=n()) #Count number of unique sites
+
+bRepPlot <- compositeLocal %>% dplyr::filter(., net=="Bird") %>% dplyr::filter(., nsites>5) %>%
+ggplot(aes(x=factor(node, levels=unique(node[order(nsites, decreasing = T)])), y=close,
+           fill=nsites), data=.)+
+  geom_boxplot(outlier.shape = NA)+ 
+  scale_fill_continuous(name = "Number of Sites")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 305, vjust = 0.5, hjust=0))+
+  ylab("Local Closeness")+
+  xlab("Species (Avian Network)")+
+  geom_point(aes(x=factor(node, levels=unique(node[order(nsites, decreasing = T)])), y=close), size=1.5)
+
+bRepPlot.z <- compositeLocal %>% dplyr::filter(., net=="Bird") %>% dplyr::filter(., nsites>5) %>%
+ggplot(aes(x=factor(node, levels=unique(node[order(nsites, decreasing = T)])), y=z.close,
+           fill=nsites), data=.)+
+  geom_boxplot(outlier.shape = NA)+ 
+  scale_fill_continuous(name = "Number of Sites")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 305, vjust = 0.5, hjust=0))+
+  ylab("Local Closeness \n (Z-transformed)")+
+  xlab("Species (Avian Network)")+
+  geom_point(aes(x=factor(node, levels=unique(node[order(nsites, decreasing = T)])), y=z.close), size=1.5)+
+  geom_hline(yintercept=1.96, linetype='dotted', col = 'red')+
+  geom_hline(yintercept=-1.96, linetype='dotted', col = 'red')
+
+iRepPlot <- compositeLocal %>% dplyr::filter(., net=="Insect") %>% dplyr::filter(., nsites>10) %>%
+ggplot(aes(x=factor(node, levels=unique(node[order(nsites, decreasing = T)])), y=close,
+           fill=log(nsites)), data=.)+
+  geom_boxplot(outlier.shape = NA)+ 
+  scale_fill_continuous(name = "Number of Sites (Log)")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 305, vjust = 0.5, hjust=0))+
+  ylab("Local Closeness")+
+  xlab("Species (Insect Network)")+
+  geom_point(aes(x=factor(node, levels=unique(node[order(nsites, decreasing = T)])), y=close), size=1.5)
+
+iRepPlot.z <- compositeLocal %>% dplyr::filter(., net=="Insect") %>% dplyr::filter(., nsites>10) %>%
+ggplot(aes(x=factor(node, levels=unique(node[order(nsites, decreasing = T)])), y=z.close,
+           fill=log(nsites)), data=.)+
+  geom_boxplot(outlier.shape = NA)+ 
+  scale_fill_continuous(name = "Number of Sites (Log)")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 305, vjust = 0.5, hjust=0))+
+  ylab("Local Closeness \n (Z-transformed)")+
+  xlab("Species (Insect Network)")+
+  geom_point(aes(x=factor(node, levels=unique(node[order(nsites, decreasing = T)])), y=z.close), size=1.5)+
+  geom_hline(yintercept=1.96, linetype='dotted', col = 'red')+
+  geom_hline(yintercept=-1.96, linetype='dotted', col = 'red')
+
+#pdf(file="cleanFigs/Local_Centrality_Distributions.pdf", width=10, height=8)
+grid.arrange(bRepPlot, bRepPlot.z, iRepPlot, iRepPlot.z, nrow=2)
+#dev.off()
+```
+
+Related question: Is # of coocuring species related to geographic range size? What about centrality?
+```{r}
+#Create species-by-site table
+species1_by_site <- Birdweb %>%
+  distinct(site_index, species1)
+
+#Use above to find intraguild coocurences
+Birdweb <- species1_by_site %>%
+  inner_join(species1_by_site, by = "site_index") %>% #join all cooccurences by the "site_index" key (one to many relationship is actually expected and cool)
+  dplyr::filter(species1.x != species1.y) %>%  # remove self-pairings
+  dplyr::distinct(species1.x, species1.y) %>%  # remove duplicates (coocure at multiple sites)
+  dplyr::group_by(species1.x) %>%
+  dplyr::summarise(n_intraaguildCooccur_sp1 = n(), .groups = "drop") %>% #count the number of coccurences
+  dplyr::rename(species1 = species1.x) %>%
+  left_join(Birdweb, ., by="species1")
+
+#Recreate clean species-by-site table
+species1_by_site <- Birdweb %>%
+  distinct(site_index, species1)
+#Find extraguild coocurences
+Birdweb <- dplyr::select(Birdweb, species2, site_index) %>%
+  unique() %>%
+  left_join(species1_by_site, ., by="site_index") %>%
+  unique() %>% 
+  group_by(., species1) %>%
+  dplyr::summarise(n_extraguildCooccur_sp1 = n(), .groups = "drop") %>%
+  left_join(Birdweb, ., by=c("species2"))
+
+
+####NOw recreate for species 2
+#Create species-by-site table
+species2_by_site <- Birdweb %>%
+  distinct(site_index, species2)
+
+#Use above to find intraguild coocurences
+Birdweb <- species2_by_site %>%
+  inner_join(species2_by_site, by = "site_index") %>% #join all cooccurences by the "site_index" key (one to many relationship is actually expected and cool)
+  dplyr::filter(species2.x != species2.y) %>%  # remove self-pairings
+  dplyr::distinct(species2.x, species2.y) %>%  # remove duplicates (coocure at multiple sites)
+  dplyr::group_by(species2.x) %>%
+  dplyr::summarise(n_intraaguildCooccur_sp2 = n(), .groups = "drop") %>% #count the number of coccurences
+  dplyr::rename(species2 = species2.x) %>%
+  left_join(Birdweb, ., by="species2")
+
+
+#Recreate clean species-by-site table
+species2_by_site <- Birdweb %>%
+  distinct(site_index, species2)
+#Find extraguild coocurences
+Birdweb <- dplyr::select(Birdweb, species1, site_index) %>%
+  unique() %>%
+  left_join(species2_by_site, ., by="site_index") %>%
+  unique() %>% 
+  group_by(., species2) %>%
+  dplyr::summarise(n_extraguildCooccur_sp2 = n(), .groups = "drop") %>%
+  left_join(Birdweb, ., by=c("species2"))
+
+###################Repeat all of above for insect Web
+
+#Create species-by-site table
+species1_by_site <- Insectweb %>%
+  distinct(site_index, species1)
+
+#Use above to find intraguild coocurences
+Insectweb <- species1_by_site %>%
+  inner_join(species1_by_site, by = "site_index") %>% #join all cooccurences by the "site_index" key (one to many relationship is actually expected and cool)
+  dplyr::filter(species1.x != species1.y) %>%  # remove self-pairings
+  dplyr::distinct(species1.x, species1.y) %>%  # remove duplicates (coocure at multiple sites)
+  dplyr::group_by(species1.x) %>%
+  dplyr::summarise(n_intraaguildCooccur_sp1 = n(), .groups = "drop") %>% #count the number of coccurences
+  dplyr::rename(species1 = species1.x) %>%
+  left_join(Insectweb, ., by="species1")
+
+#Recreate clean species-by-site table
+species1_by_site <- Insectweb %>%
+  distinct(site_index, species1)
+#Find extraguild coocurences
+Insectweb <- dplyr::select(Insectweb, species2, site_index) %>%
+  unique() %>%
+  left_join(species1_by_site, ., by="site_index") %>%
+  unique() %>% 
+  group_by(., species1) %>%
+  dplyr::summarise(n_extraguildCooccur_sp1 = n(), .groups = "drop") %>%
+  left_join(Insectweb, ., by=c("species1"))
+
+
+####NOw recreate for species 2
+#Create species-by-site table
+species2_by_site <- Insectweb %>%
+  distinct(site_index, species2)
+
+#Use above to find intraguild coocurences
+Insectweb <- species2_by_site %>%
+  inner_join(species2_by_site, by = "site_index") %>% #join all cooccurences by the "site_index" key (one to many relationship is actually expected and cool)
+  dplyr::filter(species2.x != species2.y) %>%  # remove self-pairings
+  dplyr::distinct(species2.x, species2.y) %>%  # remove duplicates (coocure at multiple sites)
+  dplyr::group_by(species2.x) %>%
+  dplyr::summarise(n_intraaguildCooccur_sp2 = n(), .groups = "drop") %>% #count the number of coccurences
+  dplyr::rename(species2 = species2.x) %>%
+  left_join(Insectweb, ., by="species2")
+
+
+#Recreate clean species-by-site table
+species2_by_site <- Insectweb %>%
+  distinct(site_index, species2)
+#Find extraguild coocurences
+Insectweb <- dplyr::select(Insectweb, species1, site_index) %>%
+  unique() %>%
+  left_join(species2_by_site, ., by="site_index") %>%
+  unique() %>% 
+  group_by(., species2) %>%
+  dplyr::summarise(n_extraguildCooccur_sp2 = n(), .groups = "drop") %>%
+  left_join(Insectweb, ., by=c("species2"))
+
+rm(species1_by_site, species2_by_site) #cleanup
+```
+
+Plotting based on the above
+```{r}
+compositeMeta2 <- compositeMeta
+compositeMeta2 <- rbind(imetaCent, bmetaCent) %>% dplyr::filter(., is.na(envarea)==F)
+compositeMeta2$type[compositeMeta2$type %in% c("Insect", "Bird")] <- "Floral Visitor"
+
+compositeMeta2 <- data.frame(node=c(Insectweb$species1, Insectweb$species2, Birdweb$species1, Birdweb$species2),
+intra=c(Insectweb$n_intraaguildCooccur_sp1, Insectweb$n_intraaguildCooccur_sp2, Birdweb$n_intraaguildCooccur_sp1, Birdweb$n_intraaguildCooccur_sp2), extra=c(Insectweb$n_extraguildCooccur_sp1, Insectweb$n_extraguildCooccur_sp2, Birdweb$n_extraguildCooccur_sp1, Birdweb$n_extraguildCooccur_sp2)) %>% #assemble our resultant data
+unique() %>%
+  left_join(compositeMeta2,., by="node")
+
+
+#pdf(file="cleanFigs/Cooccurence_vs_GeographicRange.pdf", width=10, height=8)
+compositeMeta2 %>% 
+  ggplot(., aes(x=log(globkm), y=log(extra), col=net))+
+  geom_point(alpha=0.7)+
+  geom_smooth(method="lm") + 
+  #geom_smooth(method="lm", data=dplyr::filter(compositeMeta, type!="Floral Visitor" | net=="Insect"))+ #Remove insignificant coefficients from the lm data
+  facet_wrap(~type, labeller = labeller(type = c("Floral Visitors", "Plants")))+
+  theme_classic()+
+  ylab("Number of Extraguild Cooccuring Species (log)")+
+  xlab("Scaled Log Geographic Area")+guides(col=guide_legend(title="MetaNetwork"))+
+  scale_color_manual(labels = c("Avian-Plant", "Insect-Plant"), values = c("red", "black"))+
+  theme(legend.position=c(0.15,.85), guide_legend(override.aes=list(fill=NA)))+
+       theme(strip.text.x = element_text(size = 14))
+#dev.off()
+```
+
+
+
+```{r, eval=F}
+library(bipartite)
+
+vals <- list()
+for(idex in unique(Birdweb$site_index)){
+  temp <- dplyr::filter(Birdweb, site_index==idex)
+  vals[[idex]] <-  xtabs(as.numeric(connection_strength) ~ species1 + species2, data = temp)
+}
+
+bpart <- betalinkr_multi(webs2array(vals), partitioning="poisot", binary=T, function.dist="betadiver", distofempty="na" )
+
+save(bpart, file="birdPartition.RDA")
+
+vals <- list()
+for(idex in unique(Insectweb$site_index)){
+  temp <- dplyr::filter(Insectweb, site_index==idex)
+  vals[[idex]] <-  xtabs(as.numeric(connection_strength) ~ species1 + species2, data = temp)
+}
+
+ipart <- betalinkr_multi(webs2array(vals), partitioning="poisot", binary=T)
+
+save(ipart, file="insectPartition.RDA")
+```
+

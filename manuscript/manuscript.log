@@ -1,4 +1,4 @@
-This is LuaHBTeX, Version 1.14.0 (TeX Live 2022/dev/Debian)  (format=lualatex 2024.3.15)  16 JUN 2025 09:14
+This is LuaHBTeX, Version 1.14.0 (TeX Live 2022/dev/Debian)  (format=lualatex 2024.3.15)  18 JUN 2025 17:41
  restricted system commands enabled.
 **manuscript.tex
 (./manuscript.tex
@@ -402,11 +402,7 @@ File: l3backend-luatex.def 2022-01-12 L3 backend support: PDF output (LuaTeX)
 \l__color_backend_stack_int=\count298
 \l__pdf_internal_box=\box58
 )
-(./manuscript.aux
-
-LaTeX Warning: Label `fig:metawebScale' multiply defined.
-
-)
+(./manuscript.aux)
 \openout1 = manuscript.aux
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 65.
@@ -653,7 +649,7 @@ See the luatex.def package documentation for explanation.
 Type  H <return>  for immediate help.
  ...                                              
                                                   
-l.329 ...t=642]{figs/metaweb_area_scaling_icons.pdf}
+l.329 ...height=642]{figs/MetawebCentralityPlot.png}
                                                   %
 Try typing  <return>  to proceed.
 If that doesn't work, type  X <return>  to quit.
@@ -668,17 +664,17 @@ See the luatex.def package documentation for explanation.
 Type  H <return>  for immediate help.
  ...                                              
                                                   
-l.329 ...t=642]{figs/metaweb_area_scaling_icons.pdf}
+l.329 ...height=642]{figs/MetawebCentralityPlot.png}
                                                   %
 Try typing  <return>  to proceed.
 If that doesn't work, type  X <return>  to quit.
 
-<figs/metaweb_area_scaling_icons.pdf, id=147, 433.62pt x 433.62pt>
-File: figs/metaweb_area_scaling_icons.pdf Graphic file (type pdf)
-<use figs/metaweb_area_scaling_icons.pdf>
-Package luatex.def Info: figs/metaweb_area_scaling_icons.pdf  used on input lin
-e 329.
-(luatex.def)             Requested size: 455.24408pt x 455.26813pt.
+<figs/MetawebCentralityPlot.png, id=147, 115.632pt x 92.5056pt>
+File: figs/MetawebCentralityPlot.png Graphic file (type png)
+<use figs/MetawebCentralityPlot.png>
+Package luatex.def Info: figs/MetawebCentralityPlot.png  used on input line 329
+.
+(luatex.def)             Requested size: 455.24408pt x 364.2159pt.
 
 Overfull \hbox (36.0pt too wide) in paragraph at lines 329--331
  []\T1/ptm/m/n/12 610642[][] 
@@ -697,7 +693,7 @@ See the luatex.def package documentation for explanation.
 Type  H <return>  for immediate help.
  ...                                              
                                                   
-l.336 ...t=642]{figs/metaweb_area_scaling_local.pdf}
+l.338 ...atheight=642]{figs/LocalCentralityPlot.png}
                                                   %
 Try typing  <return>  to proceed.
 If that doesn't work, type  X <return>  to quit.
@@ -712,63 +708,18 @@ See the luatex.def package documentation for explanation.
 Type  H <return>  for immediate help.
  ...                                              
                                                   
-l.336 ...t=642]{figs/metaweb_area_scaling_local.pdf}
+l.338 ...atheight=642]{figs/LocalCentralityPlot.png}
                                                   %
 Try typing  <return>  to proceed.
 If that doesn't work, type  X <return>  to quit.
 
-<figs/metaweb_area_scaling_local.pdf, id=148, 433.62pt x 433.62pt>
-File: figs/metaweb_area_scaling_local.pdf Graphic file (type pdf)
-<use figs/metaweb_area_scaling_local.pdf>
-Package luatex.def Info: figs/metaweb_area_scaling_local.pdf  used on input lin
-e 336.
-(luatex.def)             Requested size: 455.24408pt x 455.26813pt.
+<figs/LocalCentralityPlot.png, id=148, 115.632pt x 92.5056pt>
+File: figs/LocalCentralityPlot.png Graphic file (type png)
+<use figs/LocalCentralityPlot.png>
+Package luatex.def Info: figs/LocalCentralityPlot.png  used on input line 338.
+(luatex.def)             Requested size: 455.24408pt x 364.2159pt.
 
-Overfull \hbox (36.0pt too wide) in paragraph at lines 336--338
- []\T1/ptm/m/n/12 610642[][] 
- []
-
-
-LaTeX Warning: `!h' float specifier changed to `!ht'.
-
-
-! Package luatex.def Error: Options `bblly', `bblly', `bburx', `bbury',
-(luatex.def)                `natheight' and `natwidth' are not
-(luatex.def)                supported by luatex driver:
-(luatex.def)                use `viewport' instead.
-
-See the luatex.def package documentation for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.344 ...ht=642]{figs/metaweb_centrality_ztrans.pdf}
-                                                  %
-Try typing  <return>  to proceed.
-If that doesn't work, type  X <return>  to quit.
-
-
-! Package luatex.def Error: Options `bblly', `bblly', `bburx', `bbury',
-(luatex.def)                `natheight' and `natwidth' are not
-(luatex.def)                supported by luatex driver:
-(luatex.def)                use `viewport' instead.
-
-See the luatex.def package documentation for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.344 ...ht=642]{figs/metaweb_centrality_ztrans.pdf}
-                                                  %
-Try typing  <return>  to proceed.
-If that doesn't work, type  X <return>  to quit.
-
-<figs/metaweb_centrality_ztrans.pdf, id=149, 433.62pt x 433.62pt>
-File: figs/metaweb_centrality_ztrans.pdf Graphic file (type pdf)
-<use figs/metaweb_centrality_ztrans.pdf>
-Package luatex.def Info: figs/metaweb_centrality_ztrans.pdf  used on input line
- 344.
-(luatex.def)             Requested size: 455.24408pt x 455.26813pt.
-
-Overfull \hbox (36.0pt too wide) in paragraph at lines 344--346
+Overfull \hbox (36.0pt too wide) in paragraph at lines 338--340
  []\T1/ptm/m/n/12 610642[][] 
  []
 
@@ -785,8 +736,8 @@ LaTeX Warning: Text page 13 contains only floats.
 Overfull \vbox (3.97963pt too high) has occurred while \output is active []
 
 
-[13<./figs/Concept.pdf>] [14<./figs/metaweb_area_scaling_icons.pdf>] [15<./figs/
-metaweb_area_scaling_local.pdf>] [16<./figs/metaweb_centrality_ztrans.pdf>]
+[13<./figs/Concept.pdf>] [14<./figs/MetawebCentralityPlot.png>] [15<./figs/Local
+CentralityPlot.png>]
 
 ! Package luatex.def Error: Options `bblly', `bblly', `bburx', `bbury',
 (luatex.def)                `natheight' and `natwidth' are not
@@ -797,7 +748,7 @@ See the luatex.def package documentation for explanation.
 Type  H <return>  for immediate help.
  ...                                              
                                                   
-l.382 ...eight=642]{figs/CentralityCorrelations.pdf}
+l.375 ...eight=642]{figs/CentralityCorrelations.pdf}
                                                   
 Try typing  <return>  to proceed.
 If that doesn't work, type  X <return>  to quit.
@@ -812,19 +763,19 @@ See the luatex.def package documentation for explanation.
 Type  H <return>  for immediate help.
  ...                                              
                                                   
-l.382 ...eight=642]{figs/CentralityCorrelations.pdf}
+l.375 ...eight=642]{figs/CentralityCorrelations.pdf}
                                                   
 Try typing  <return>  to proceed.
 If that doesn't work, type  X <return>  to quit.
 
-<figs/CentralityCorrelations.pdf, id=106698, 578.16pt x 289.08pt>
+<figs/CentralityCorrelations.pdf, id=186, 578.16pt x 289.08pt>
 File: figs/CentralityCorrelations.pdf Graphic file (type pdf)
 <use figs/CentralityCorrelations.pdf>
-Package luatex.def Info: figs/CentralityCorrelations.pdf  used on input line 38
-2.
+Package luatex.def Info: figs/CentralityCorrelations.pdf  used on input line 37
+5.
 (luatex.def)             Requested size: 455.24408pt x 227.62082pt.
 
-Overfull \hbox (36.0pt too wide) in paragraph at lines 382--383
+Overfull \hbox (36.0pt too wide) in paragraph at lines 375--376
  \T1/ptm/m/n/12 610642[] 
  []
 
@@ -840,7 +791,7 @@ See the luatex.def package documentation for explanation.
 Type  H <return>  for immediate help.
  ...                                              
                                                   
-l.390 ...t=642]{figs/localCentralityVariation_2.pdf}
+l.383 ...t=642]{figs/localCentralityVariation_2.pdf}
                                                   
 Try typing  <return>  to proceed.
 If that doesn't work, type  X <return>  to quit.
@@ -855,19 +806,19 @@ See the luatex.def package documentation for explanation.
 Type  H <return>  for immediate help.
  ...                                              
                                                   
-l.390 ...t=642]{figs/localCentralityVariation_2.pdf}
+l.383 ...t=642]{figs/localCentralityVariation_2.pdf}
                                                   
 Try typing  <return>  to proceed.
 If that doesn't work, type  X <return>  to quit.
 
-<figs/localCentralityVariation_2.pdf, id=106699, 794.97pt x 614.295pt>
+<figs/localCentralityVariation_2.pdf, id=187, 794.97pt x 614.295pt>
 File: figs/localCentralityVariation_2.pdf Graphic file (type pdf)
 <use figs/localCentralityVariation_2.pdf>
 Package luatex.def Info: figs/localCentralityVariation_2.pdf  used on input lin
-e 390.
+e 383.
 (luatex.def)             Requested size: 455.24408pt x 351.79211pt.
 
-Overfull \hbox (36.0pt too wide) in paragraph at lines 390--391
+Overfull \hbox (36.0pt too wide) in paragraph at lines 383--384
  \T1/ptm/m/n/12 610642[] 
  []
 
@@ -889,20 +840,20 @@ warning  (pdf backend): ignoring duplicate destination with the name 'page.2'
 LaTeX Warning: There were undefined references.
 
 
-LaTeX Warning: There were multiply-defined labels.
+LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
 
 Package rerunfilecheck Info: File `manuscript.out' has not changed.
 (rerunfilecheck)             Checksum: D41D8CD98F00B204E9800998ECF8427E;0.
 )
 
 Here is how much of LuaTeX's memory you used:
- 12088 strings out of 477805
+ 12076 strings out of 477805
  100000,552014 words of node,token memory allocated
- 1671 words of node memory still in use:
-   6 hlist, 2 vlist, 2 rule, 2 glue, 177 kern, 1 glyph, 72 attribute, 60 glue_sp
-ec, 72 attribute_list, 1 write, 3 pdf_action nodes
-   avail lists: 2:551,3:293,4:26,5:305,6:35,7:7310,8:78,9:302,10:23,11:567
- 32122 multiletter control sequences out of 65536+600000
+ 1635 words of node memory still in use:
+   6 hlist, 2 vlist, 2 rule, 2 glue, 173 kern, 1 glyph, 68 attribute, 60 glue_sp
+ec, 68 attribute_list, 1 write, 3 pdf_action nodes
+   avail lists: 2:559,3:293,4:26,5:309,6:35,7:7310,8:78,9:302,10:23,11:567
+ 32117 multiletter control sequences out of 65536+600000
  92 fonts using 6142447 bytes
  60i,6n,59p,1519b,489s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/usr/share/texlive/texmf-dist/fonts/enc/dvips/base/8r.enc}</usr/share/texlive/t
@@ -913,10 +864,10 @@ urw/courier/ucrr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/helvetic/u
 hvr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/
 share/texlive/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/share/texlive/te
 xmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on manuscript.pdf (18 pages, 15662701 bytes).
+Output written on manuscript.pdf (17 pages, 1897518 bytes).
 
-PDF statistics: 106755 PDF objects out of 114338 (max. 8388607)
- 70735 compressed objects within 708 object streams
- 68 named destinations out of 1000 (max. 131072)
+PDF statistics: 242 PDF objects out of 1000 (max. 8388607)
+ 196 compressed objects within 2 object streams
+ 67 named destinations out of 1000 (max. 131072)
  1 words of extra memory for PDF output out of 10000 (max. 100000000)
 
