@@ -24,6 +24,7 @@ library(taxize)
 library(vegan)
 library(randomForest)
 library(gridExtra)
+library(vegan)
 ```
 
 
@@ -804,6 +805,7 @@ nlinks/(length(unique(Birdweb$species1))*length(unique(Birdweb$species2))) #divi
 
 rm(nlinks) #housekeeping
 ```
+## Supplement
 
 Connectance of local webs
 ```{r}
@@ -911,6 +913,7 @@ ggplot(aes(x=factor(node, levels=unique(node[order(nsites, decreasing = T)])), y
 grid.arrange(bRepPlot, bRepPlot.z, iRepPlot, iRepPlot.z, nrow=2)
 #dev.off()
 ```
+
 
 Related question: Is # of coocuring species related to geographic range size? What about centrality?
 ```{r}
@@ -1056,30 +1059,116 @@ compositeMeta2 %>%
        theme(strip.text.x = element_text(size = 14))
 #dev.off()
 ```
+Needs a site by species matrix
+```{r, eval==F}
+#cycle across insect pollinators
+partition <- NULL
 
-
-
-```{r, eval=F}
-library(bipartite)
-
-vals <- list()
-for(idex in unique(Birdweb$site_index)){
-  temp <- dplyr::filter(Birdweb, site_index==idex)
-  vals[[idex]] <-  xtabs(as.numeric(connection_strength) ~ species1 + species2, data = temp)
+#first for pollinators
+for(spID in 1:length(unique(Insectweb$species2))){
+temp <- dplyr::filter(Insectweb, species2==unique(Insectweb$species2)[spID]) #find interactions
+com <-  as.data.frame.matrix(xtabs(formula=~species1+site_index, data=temp)) #Create community matrix
+tempdat <- data.frame(species=unique(Insectweb$species2)[spID],turnover=nestedbetasor(com)[1],nestedness=nestedbetasor(com)[2],sorenson=nestedbetasor(com)[3], nsites=ncol(com), ncooc=nrow(com), type="Insect", net="Insect") #calculate nestedness + turnover partition according to Baselga 2012
+  if(spID%%50==0){
+    print(paste("done with", spID))
+  }
+partition <- rbind(partition, tempdat)
 }
 
-bpart <- betalinkr_multi(webs2array(vals), partitioning="poisot", binary=T, function.dist="betadiver", distofempty="na" )
-
-save(bpart, file="birdPartition.RDA")
-
-vals <- list()
-for(idex in unique(Insectweb$site_index)){
-  temp <- dplyr::filter(Insectweb, site_index==idex)
-  vals[[idex]] <-  xtabs(as.numeric(connection_strength) ~ species1 + species2, data = temp)
+#now for plants
+for(spID in 1:length(unique(Insectweb$species1))){
+temp <- dplyr::filter(Insectweb, species1==unique(Insectweb$species1)[spID]) #find interactions
+com <-  as.data.frame.matrix(xtabs(formula=~species2+site_index, data=temp)) #Create community matrix
+tempdat <- c(species=unique(Insectweb$species1)[spID],turnover=nestedbetasor(com)[1],nestedness=nestedbetasor(com)[2],sorenson=nestedbetasor(com)[3], nsites=ncol(com), ncooc=nrow(com), type="Plant", net="Insect") #calculate nestedness + turnover partition according to Baselga 2012
+  if(spID%%50==0){
+    print(paste("done with", spID))
+  }
+partition <- rbind(partition, tempdat)
 }
 
-ipart <- betalinkr_multi(webs2array(vals), partitioning="poisot", binary=T)
+#repeat for avian pollinators
+for(spID in 1:length(unique(Birdweb$species2))){
+  temp <- dplyr::filter(Birdweb, species2==unique(Birdweb$species2)[spID]) #find interactions
+  com <-  as.data.frame.matrix(xtabs(formula=~species1+site_index, data=temp)) #Create community matrix
+  tempdat <- data.frame(species=unique(Birdweb$species2)[spID],turnover=nestedbetasor(com)[1],nestedness=nestedbetasor(com)[2],sorenson=nestedbetasor(com)[3], nsites=ncol(com), ncooc=nrow(com), type="Bird", net="Bird") #calculate nestedness + turnover partition according to Baselga 2012
+    if(spID%%50==0){
+      print(paste("done with", spID))
+    }
+  partition <- rbind(partition, tempdat)
+}
 
-save(ipart, file="insectPartition.RDA")
+#And finally for avian pollinated plants
+for(spID in 1:length(unique(Birdweb$species1))){
+temp <- dplyr::filter(Birdweb, species1==unique(Birdweb$species1)[spID]) #find interactions
+com <-  as.data.frame.matrix(xtabs(formula=~species2+site_index, data=temp)) #Create community matrix
+tempdat <- c(species=unique(Birdweb$species1)[spID],turnover=nestedbetasor(com)[1],nestedness=nestedbetasor(com)[2],sorenson=nestedbetasor(com)[3], nsites=ncol(com), ncooc=nrow(com), type="Plant", net="Bird") #calculate nestedness + turnover partition according to Baselga 2012
+  if(spID%%50==0){
+    print(paste("done with", spID))
+  }
+partition <- rbind(partition, tempdat)
+}
+partition$turnover <- as.numeric(partition$turnover)
+partition$nestedness <- as.numeric(partition$nestedness)
+partition$sorenson <- as.numeric(partition$sorenson)
+partition$nsites <- as.numeric(partition$nsites)
+partition$ncooc <- as.numeric(partition$ncooc)
+#save(partition, file="Betadiverpartition.RDA")
+```
+
+Adding our results of our beta diversity partitioning to our existing metawebs
+
+```{r}
+load(file="Betadiverpartition.RDA")
+partition <- dplyr::filter(partition, nsites>1) %>%
+  dplyr::filter(., is.na(sorenson)==F)
+
+imetaCent <- partition %>% dplyr::rename(., node=species) %>% 
+  dplyr::filter(., net=="Insect") %>%
+  left_join(imetaCent, ., by=c("node", "type", "net"))
+
+bmetaCent <- partition %>% dplyr::rename(., node=species) %>% 
+  dplyr::filter(., net=="Bird") %>%
+  left_join(bmetaCent, ., by=c("node", "type", "net"))
+```
+
+Let's do some plotting
+```{r}
+
+bmetaCent %>% 
+  ggplot(., aes(x=scale(log(globkm)), y=sorenson))+
+  geom_point(alpha=0.4)+
+  theme_classic()+
+  xlab("Scaled Log Geographic Area")
+
+bmetaCent %>% 
+  ggplot(., aes(x=log(nsites), y=turnover))+
+  geom_point(alpha=0.4)+
+  theme_classic()+
+  xlab("Number of Sites (log)")
+
+bmetaCent %>% 
+  ggplot(., aes(x=log(globkm), y=turnover))+
+  geom_point(alpha=0.4)+
+  theme_classic()+
+  xlab("Number of Sites (log)")
+
+bmetaCent %>% 
+  ggplot(., aes(x=log(scale(envarea)), y=turnover))+
+  geom_point(alpha=0.4)+
+  theme_classic()+
+  xlab("Scaled")
+
+summary(lm(turnover~log(scale(globkm)), data=bmetaCent))
+summary(lm(turnover~log(scale(envarea)), data=bmetaCent))
+summary(lm(turnover~log(nsites), data=bmetaCent))
+summary(lm(sorenson~log(nsites), data=bmetaCent))
+
+hist(imetaCent$turnover/imetaCent$sorenson)
+```
+
+
+
+```{r}
+
 ```
 
