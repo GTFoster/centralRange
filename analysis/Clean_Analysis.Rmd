@@ -26,6 +26,9 @@ library(randomForest)
 library(gridExtra)
 library(vegan)
 library(ggridges)
+library(brms)
+
+set.seed(1)
 ```
 
 
@@ -840,40 +843,92 @@ bayeClosesum <- metaCentbayes %>%
   dplyr::mutate(pMCMC = 2*pmin(leftail, rightail)) #grab min tail and double, also drop groupings in case
 ```
 
+Repeat for z-standardized version
 
 ```{r}
-bayesRunz <- function(netype, nodetype){
-  if(netype=="Insect"){
-    bayesamp <- imetaCent %>% dplyr::filter(., type==nodetype) %>% #Grab network
-    dplyr::filter(., is.na(globkm)==F & is.na(envarea)==F) %>% #filter to complete cases
-  MCMCglmm::MCMCglmm(fixed=close.z~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)), data=., thin=1, burnin=8000)
-  }
-  
-  if(netype=="Bird"){
-    bayesamp <- bmetaCent %>% dplyr::filter(., type==nodetype) %>% #Grab network
-    dplyr::filter(., is.na(globkm)==F & is.na(envarea)==F) %>% #filter to complete cases
-  MCMCglmm::MCMCglmm(fixed=close.z~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)), data=., thin=1, burnin=8000)
-  }
-  
-  bayesdf <- data.frame(bayesamp$Sol) #extract samples
-  colnames(bayesdf) <- c("Intercept", "geo", "env", "interaction")
-  bayesdf$type <- nodetype
-  bayesdf$net <- netype
-  bayeslong <- pivot_longer(bayesdf, cols=c(1:4), names_to="param")
-  return(bayeslong)
-}
+Insect_visitor.brms.z <- imetaCent %>% 
+  dplyr::filter(., type=="Insect") %>%
+  brm(close.z~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)), 
+                  family = gaussian(), #gaussian error
+                  data = .,
+                  prior=set_prior("normal(0, 2)", class = "b"), #heirarchical prior-all slopes will use this
+                  chains = 5, # nb of chains
+                  iter = 5000, # nb of iterations, including burnin
+                  warmup = 1000, # burnin
+                  thin = 1) # no thinning
 
-bayesoutZ <- bayesRunz(netype="Bird", nodetype = "Bird")
-bayesoutZ <- rbind(bayesoutZ, bayesRunz(netype="Bird", nodetype = "Plant"))
-bayesoutZ <- rbind(bayesoutZ, bayesRunz(netype="Insect", nodetype = "Plant"))
-bayesoutZ <- rbind(bayesoutZ, bayesRunz(netype="Insect", nodetype = "Insect"))
-bayesoutZ$combo <- paste(bayesoutZ$type, bayesoutZ$net, sep="-")
+Insect_plant.brms.z <- imetaCent %>% 
+  dplyr::filter(., type=="Plant") %>%
+  brm(close.z~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)), 
+                  family = gaussian(), #gaussian error
+                  data = .,
+                  prior=set_prior("normal(0, 2)", class = "b"), #heirarchical prior-all slopes will use this
+                  chains = 5, # nb of chains
+                  iter = 5000, # nb of iterations, including burnin
+                  warmup = 1000, # burnin
+                  thin = 1) # no thinning
 
-bayesoutZ$names <- c("Bird-Bird"="Avian Floral Visitor", "Plant-Bird"="Avian-Visited Plant", "Plant-Insect"="Insect-Visited Plant", "Insect-Insect"="Insect Floral Visitor")[bayesoutZ$combo]
 
+Avian_plant.brms.z <- bmetaCent %>% 
+  dplyr::filter(., type=="Plant") %>%
+  brm(close.z~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)), 
+                  family = gaussian(), #gaussian error
+                  data = .,
+                  prior=set_prior("normal(0, 2)", class = "b"), #heirarchical prior-all slopes will use this
+                  chains = 5, # nb of chains
+                  iter = 5000, # nb of iterations, including burnin
+                  warmup = 1000, # burnin
+                  thin = 1) # no thinning
+
+Avian_visitor.brms.z <- bmetaCent %>% 
+  dplyr::filter(., type=="Bird") %>%
+  brm(close.z~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)), 
+                  family = gaussian(), #gaussian error
+                  data = .,
+                  prior=set_prior("normal(0, 2)", class = "b"), #heirarchical prior-all slopes will use this
+                  chains = 5, # nb of chains
+                  iter = 5000, # nb of iterations, including burnin
+                  warmup = 1000, # burnin
+                  thin = 1) # no thinning
+
+samps <- as_draws_df(Insect_visitor.brms.z) %>% 
+  dplyr::select(., b_Intercept, b_scalelogglobkm, b_scalelogenvarea, "b_scalelogglobkm:scalelogenvarea") %>%
+  dplyr::mutate(type="Insect", net="Insect")
+colnames(samps) <- c("intercept","geo","env","interaction","type","net")
+
+temp <- as_draws_df(Insect_plant.brms.z) %>% 
+  dplyr::select(., b_Intercept, b_scalelogglobkm, b_scalelogenvarea, "b_scalelogglobkm:scalelogenvarea") %>%
+  dplyr::mutate(type="Plant", net="Insect")
+colnames(temp) <- c("intercept","geo","env","interaction","type","net")
+samps <- rbind(samps, temp)
+
+temp <- as_draws_df(Avian_visitor.brms.z) %>% 
+  dplyr::select(., b_Intercept, b_scalelogglobkm, b_scalelogenvarea, "b_scalelogglobkm:scalelogenvarea") %>%
+  dplyr::mutate(type="Bird", net="Bird")
+colnames(temp) <- c("intercept","geo","env","interaction","type","net")
+samps <- rbind(samps, temp)
+
+temp <- as_draws_df(Avian_plant.brms.z) %>% 
+  dplyr::select(., b_Intercept, b_scalelogglobkm, b_scalelogenvarea, "b_scalelogglobkm:scalelogenvarea") %>%
+  dplyr::mutate(type="Plant", net="Bird")
+colnames(temp) <- c("intercept","geo","env","interaction","type","net")
+samps <- rbind(samps, temp)
+
+
+metaCentbayes.z <- pivot_longer(samps, cols = c("intercept","geo","env","interaction"))
+metaCentbayes.z$combo <- paste(metaCentbayes.z$type, metaCentbayes.z$net, sep="-")
+
+metaCentbayes.z$names <- c("Bird-Bird"="Avian Floral Visitor", "Plant-Bird"="Avian-Visited Plant", "Plant-Insect"="Insect-Visited Plant", "Insect-Insect"="Insect Floral Visitor")[metaCentbayes.z$combo]
+
+metaCentbayes.z <- dplyr::rename(metaCentbayes.z, param=name)
+
+```
+
+
+```{r}
 
 #pdf(file="figs/rightbayesplot_main.pdf", width=5, height=11)
-bayesoutZ %>% dplyr::filter(., param!="Intercept") %>%
+metaCentbayes.z %>% dplyr::filter(., param!="intercept") %>%
 ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
     stat_density_ridges(scale = 1,
     geom = "density_ridges_gradient",
@@ -898,14 +953,12 @@ ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
 
 
 
-bayeZsum <- bayesoutZ %>% 
+bayeZsum <- metaCentbayes.z %>% 
   dplyr::group_by(., combo, param) %>% 
-  dplyr::summarise(., leftail=sum(value<0)/5000, rightail=sum(value>0)/5000)%>%
+  dplyr::summarise(., leftail=sum(value<0)/nrow(temp), rightail=sum(value>0)/nrow(temp))%>%
   dplyr::mutate(pMCMC = 2*pmin(leftail, rightail)) #grab min tail and double, also drop groupings in case
-
-
-bayeZsum %>% dplyr::filter(., param!="Intercept")
 ```
+
 
 Plotting the effects of range size on local centrality
 ```{r}
@@ -992,46 +1045,91 @@ cor.test(bmetaCent$close, bmetaCent$meanLocalclose)
 Now performing Bayesian version the local web plotting. 
 
 ```{r}
+Insect_visitor.brms.local <- localiCent %>% 
+  dplyr::filter(., type=="Insect") %>%
+  brm(z.close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)), 
+                  family = gaussian(), #gaussian error
+                  data = .,
+                  prior=set_prior("normal(0, 2)", class = "b"), #heirarchical prior-all slopes will use this
+                  chains = 5, # nb of chains
+                  iter = 5000, # nb of iterations, including burnin
+                  warmup = 1000, # burnin
+                  thin = 1) # no thinning
 
-insectVisitorLocal <- localiCent %>% dplyr::filter(., type=="Insect") %>%
-  lm(data=., formula=close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)))
-summary(insectVisitorLocal)
+Insect_plant.brms.local <- localiCent %>% 
+  dplyr::filter(., type=="Plant") %>%
+  brm(z.close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)), 
+                  family = gaussian(), #gaussian error
+                  data = .,
+                  prior=set_prior("normal(0, 2)", class = "b"), #heirarchical prior-all slopes will use this
+                  chains = 5, # nb of chains
+                  iter = 5000, # nb of iterations, including burnin
+                  warmup = 1000, # burnin
+                  thin = 1) # no thinning
 
-bayesRunlocal <- function(netype, nodetype){
-  if(netype=="Insect"){
-    bayesamp <- localiCent %>% dplyr::filter(., type==nodetype) %>% #Grab network
-    dplyr::filter(., is.na(globkm)==F & is.na(envarea)==F) %>% #filter to complete cases
-  MCMCglmm::MCMCglmm(fixed=z.close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)), data=., thin=1, burnin=8000)
-  }
-  
-  if(netype=="Bird"){
-    bayesamp <- localbCent %>% dplyr::filter(., type==nodetype) %>% #Grab network
-    dplyr::filter(., is.na(globkm)==F & is.na(envarea)==F) %>% #filter to complete cases
-  MCMCglmm::MCMCglmm(fixed=z.close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)), data=., thin=1, burnin=8000)
-  }
-  
-  bayesdf <- data.frame(bayesamp$Sol) #extract samples
-  colnames(bayesdf) <- c("Intercept", "geo", "env", "interaction")
-  bayesdf$type <- nodetype
-  bayesdf$net <- netype
-  bayeslong <- pivot_longer(bayesdf, cols=c(1:4), names_to="param")
-  return(bayeslong)
-}
 
-bayesoutLoc <- bayesRunlocal(netype="Bird", nodetype = "Bird")
-bayesoutLoc <- rbind(bayesoutLoc, bayesRunlocal(netype="Bird", nodetype = "Plant"))
-bayesoutLoc <- rbind(bayesoutLoc, bayesRunlocal(netype="Insect", nodetype = "Plant"))
-bayesoutLoc <- rbind(bayesoutLoc, bayesRunlocal(netype="Insect", nodetype = "Insect"))
-bayesoutLoc$combo <- paste(bayesoutLoc$type, bayesoutLoc$net, sep="-")
+Avian_plant.brms.local <- localbCent %>% 
+  dplyr::filter(., type=="Plant") %>%
+  brm(z.close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)), 
+                  family = gaussian(), #gaussian error
+                  data = .,
+                  prior=set_prior("normal(0, 2)", class = "b"), #heirarchical prior-all slopes will use this
+                  chains = 5, # nb of chains
+                  iter = 5000, # nb of iterations, including burnin
+                  warmup = 1000, # burnin
+                  thin = 1) # no thinning
 
-bayesoutLoc$names <- c("Bird-Bird"="Avian Floral Visitor", "Plant-Bird"="Avian-Visited Plant", "Plant-Insect"="Insect-Visited Plant", "Insect-Insect"="Insect Floral Visitor")[bayesoutLoc$combo]
+Avian_visitor.brms.local <- localbCent %>% 
+  dplyr::filter(., type=="Bird") %>%
+  brm(z.close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)), 
+                  family = gaussian(), #gaussian error
+                  data = .,
+                  prior=set_prior("normal(0, 2)", class = "b"), #heirarchical prior-all slopes will use this
+                  chains = 5, # nb of chains
+                  iter = 5000, # nb of iterations, including burnin
+                  warmup = 1000,
+      thin=1) # burnin
+     
+
+
+samps <- as_draws_df(Insect_visitor.brms.local) %>% 
+  dplyr::select(., b_Intercept, b_scalelogglobkm, b_scalelogenvarea, "b_scalelogglobkm:scalelogenvarea") %>%
+  dplyr::mutate(type="Insect", net="Insect")
+colnames(samps) <- c("intercept","geo","env","interaction","type","net")
+
+temp <- as_draws_df(Insect_plant.brms.local) %>% 
+  dplyr::select(., b_Intercept, b_scalelogglobkm, b_scalelogenvarea, "b_scalelogglobkm:scalelogenvarea") %>%
+  dplyr::mutate(type="Plant", net="Insect")
+colnames(temp) <- c("intercept","geo","env","interaction","type","net")
+samps <- rbind(samps, temp)
+
+temp <- as_draws_df(Avian_visitor.brms.local) %>% 
+  dplyr::select(., b_Intercept, b_scalelogglobkm, b_scalelogenvarea, "b_scalelogglobkm:scalelogenvarea") %>%
+  dplyr::mutate(type="Bird", net="Bird")
+colnames(temp) <- c("intercept","geo","env","interaction","type","net")
+samps <- rbind(samps, temp)
+
+temp <- as_draws_df(Avian_plant.brms.local) %>% 
+  dplyr::select(., b_Intercept, b_scalelogglobkm, b_scalelogenvarea, "b_scalelogglobkm:scalelogenvarea") %>%
+  dplyr::mutate(type="Plant", net="Bird")
+colnames(temp) <- c("intercept","geo","env","interaction","type","net")
+samps <- rbind(samps, temp)
+
+
+localCentbayes <- pivot_longer(samps, cols = c("intercept","geo","env","interaction"))
+localCentbayes$combo <- paste(localCentbayes$type, localCentbayes$net, sep="-")
+
+localCentbayes$names <- c("Bird-Bird"="Avian Floral Visitor", "Plant-Bird"="Avian-Visited Plant", "Plant-Insect"="Insect-Visited Plant", "Insect-Insect"="Insect Floral Visitor")[localCentbayes$combo]
+
+localCentbayes <- dplyr::rename(localCentbayes, param=name) 
+      
 ```
 
 And creating plots
 
 ```{r}
 #pdf(file="figs/local_bayesplot.pdf", width=7, height=11)
-bayesoutLoc %>% dplyr::filter(., param!="Intercept") %>%
+localCentbayes %>% dplyr::filter(., param!="intercept") %>%
 ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
     stat_density_ridges(scale = 1,
     geom = "density_ridges_gradient",
@@ -1059,13 +1157,13 @@ ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
 pMCMC
 
 ```{r}
-bayeLocsum <- bayesoutLoc %>% 
+bayeLocsum <- localCentbayes %>% 
   dplyr::group_by(., combo, param) %>% 
   dplyr::summarise(., leftail=sum(value<0)/5000, rightail=sum(value>0)/5000)%>%
   dplyr::mutate(pMCMC = 2*pmin(leftail, rightail)) #grab min tail and double, also drop groupings in case
 
 
-bayeLocsum %>% dplyr::filter(., param!="Intercept")
+bayeLocsum %>% dplyr::filter(., param!="intercept")
 ```
 
 
@@ -1441,8 +1539,8 @@ summary(lm(sorenson~log(nsites), data=bmetaCent))
 hist(imetaCent$turnover/imetaCent$sorenson)
 ```
 
-
-
+#New aside:
+Comparing to BIEN
 ```{r}
 
 ```
