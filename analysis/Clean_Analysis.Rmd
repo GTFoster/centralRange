@@ -25,6 +25,7 @@ library(vegan)
 library(randomForest)
 library(gridExtra)
 library(vegan)
+library(ggridges)
 ```
 
 
@@ -719,13 +720,13 @@ bayesRunclose <- function(netype, nodetype){
   if(netype=="Insect"){
     bayesamp <- imetaCent %>% dplyr::filter(., type==nodetype) %>% #Grab network
     dplyr::filter(., is.na(globkm)==F & is.na(envarea)==F) %>% #filter to complete cases
-  MCMCglmm::MCMCglmm(fixed=close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)), data=.)
+  MCMCglmm::MCMCglmm(fixed=close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)), data=., thin=1, burnin=10000,nitt=20000)
   }
   
   if(netype=="Bird"){
     bayesamp <- bmetaCent %>% dplyr::filter(., type==nodetype) %>% #Grab network
     dplyr::filter(., is.na(globkm)==F & is.na(envarea)==F) %>% #filter to complete cases
-  MCMCglmm::MCMCglmm(fixed=close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)), data=.)
+  MCMCglmm::MCMCglmm(fixed=close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)), data=., thin=1)
   }
   
   bayesdf <- data.frame(bayesamp$Sol) #extract samples
@@ -743,32 +744,44 @@ bayesoutClose <- rbind(bayesoutClose, bayesRunclose(netype="Bird", nodetype = "P
 bayesoutClose <- rbind(bayesoutClose, bayesRunclose(netype="Insect", nodetype = "Plant"))
 bayesoutClose <- rbind(bayesoutClose, bayesRunclose(netype="Insect", nodetype = "Insect"))
 bayesoutClose$combo <- paste(bayesoutClose$type, bayesoutClose$net, sep="-")
+unique(bayesoutClose$combo)
+bayesoutClose$names <- c("Bird-Bird"="Avian Floral Visitor", "Plant-Bird"="Avian-Visited Plant", "Plant-Insect"="Insect-Visited Plant", "Insect-Insect"="Insect Floral Visitor")[bayesoutClose$combo]
 
 
 
-pdf(file="figs/leftbayesplot_main.pdf", width=5, height=11)
-bayesoutClose %>% dplyr::filter(., param!="Intercept" & combo!="Bird-Bird") %>%
-ggplot(., aes(x = value, y = combo, fill=factor(stat(quantile)))) +
+#pdf(file="figs/leftbayesplot_main.pdf", width=7, height=11)
+bayesoutClose %>% dplyr::filter(., param=="geo") %>%
+ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
     stat_density_ridges(scale = 1.5,
     geom = "density_ridges_gradient",
     calc_ecdf = TRUE,
     quantiles = c(0.025, 0.975),
-    rel_min_height=0.005
+    rel_min_height=0.01
   )+
   theme_classic()+
   geom_vline(xintercept=0, col="red", linetype="dashed")+
   facet_wrap(~param, ncol=1,
     labeller = as_labeller(c(
-      geo = "Geographic Range",
-      env = "Environmental Range",
-      interaction = "Interaction"
+      geo = "Geographic",
+      env = "Niche Breadth",
+      interaction = "Interaction Term"
     )))+
   scale_fill_manual(values = c("lightgrey", "dodgerblue", "lightgrey"))+ 
   guides(fill="none")+
-  ylab("")
-dev.off()
+  ylab("")+
+  xlab("Coefficient value")+
+  theme(axis.text.y=element_text(size=12), strip.text.x = element_text(size = 16))
+#dev.off()
 
 
+bayeClosesum <- bayesoutClose %>% 
+  dplyr::group_by(., combo, param) %>% 
+  dplyr::summarise(., leftail=sum(value<0)/10000, rightail=sum(value>0)/10000)%>%
+  dplyr::mutate(pMCMC = 2*pmin(leftail, rightail)) #grab min tail and double, also drop groupings in case
+
+nrow(bayesoutClose)
+
+bayeClosesum %>% dplyr::filter(., param=="geo")
 ```
 
 ```{r}
@@ -776,13 +789,13 @@ bayesRunz <- function(netype, nodetype){
   if(netype=="Insect"){
     bayesamp <- imetaCent %>% dplyr::filter(., type==nodetype) %>% #Grab network
     dplyr::filter(., is.na(globkm)==F & is.na(envarea)==F) %>% #filter to complete cases
-  MCMCglmm::MCMCglmm(fixed=close.z~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)), data=., burnin=8000)
+  MCMCglmm::MCMCglmm(fixed=close.z~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)), data=., thin=1, burnin=8000)
   }
   
   if(netype=="Bird"){
     bayesamp <- bmetaCent %>% dplyr::filter(., type==nodetype) %>% #Grab network
     dplyr::filter(., is.na(globkm)==F & is.na(envarea)==F) %>% #filter to complete cases
-  MCMCglmm::MCMCglmm(fixed=close.z~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)), data=., burnin=8000)
+  MCMCglmm::MCMCglmm(fixed=close.z~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)), data=., thin=1, burnin=8000)
   }
   
   bayesdf <- data.frame(bayesamp$Sol) #extract samples
@@ -799,15 +812,17 @@ bayesoutZ <- rbind(bayesoutZ, bayesRunz(netype="Insect", nodetype = "Plant"))
 bayesoutZ <- rbind(bayesoutZ, bayesRunz(netype="Insect", nodetype = "Insect"))
 bayesoutZ$combo <- paste(bayesoutZ$type, bayesoutZ$net, sep="-")
 
+bayesoutZ$names <- c("Bird-Bird"="Avian Floral Visitor", "Plant-Bird"="Avian-Visited Plant", "Plant-Insect"="Insect-Visited Plant", "Insect-Insect"="Insect Floral Visitor")[bayesoutZ$combo]
+
 
 #pdf(file="figs/rightbayesplot_main.pdf", width=5, height=11)
-bayesoutZ %>% dplyr::filter(., param!="Intercept"& combo!="Bird-Bird") %>%
-ggplot(., aes(x = value, y = combo, fill=factor(stat(quantile)))) +
+bayesoutZ %>% dplyr::filter(., param!="Intercept") %>%
+ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
     stat_density_ridges(scale = 1,
     geom = "density_ridges_gradient",
     calc_ecdf = TRUE,
     quantiles = c(0.025, 0.975),
-    rel_min_height=0.005
+    rel_min_height=0.01
   )+
   theme_classic()+
   geom_vline(xintercept=0, col="red", linetype="dashed")+
@@ -819,9 +834,20 @@ ggplot(., aes(x = value, y = combo, fill=factor(stat(quantile)))) +
     )))+
   scale_fill_manual(values = c("lightgrey", "dodgerblue", "lightgrey"))+ 
   guides(fill="none")+
-  ylab("")
+  ylab("")+
+  xlab("Coefficient value")+
+  theme(axis.text.y=element_text(size=12), strip.text.x = element_text(size = 16))
 #dev.off()
 
+
+
+bayeZsum <- bayesoutZ %>% 
+  dplyr::group_by(., combo, param) %>% 
+  dplyr::summarise(., leftail=sum(value<0)/5000, rightail=sum(value>0)/5000)%>%
+  dplyr::mutate(pMCMC = 2*pmin(leftail, rightail)) #grab min tail and double, also drop groupings in case
+
+
+bayeZsum %>% dplyr::filter(., param!="Intercept")
 ```
 
 Plotting the effects of range size on local centrality
@@ -905,6 +931,87 @@ bmetaCent <- localbCent %>%
 
 cor.test(bmetaCent$close, bmetaCent$meanLocalclose)
 ```
+
+Now performing Bayesian version the local web plotting. 
+
+```{r}
+
+insectVisitorLocal <- localiCent %>% dplyr::filter(., type=="Insect") %>%
+  lm(data=., formula=close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)))
+summary(insectVisitorLocal)
+
+bayesRunlocal <- function(netype, nodetype){
+  if(netype=="Insect"){
+    bayesamp <- localiCent %>% dplyr::filter(., type==nodetype) %>% #Grab network
+    dplyr::filter(., is.na(globkm)==F & is.na(envarea)==F) %>% #filter to complete cases
+  MCMCglmm::MCMCglmm(fixed=z.close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)), data=., thin=1, burnin=8000)
+  }
+  
+  if(netype=="Bird"){
+    bayesamp <- localbCent %>% dplyr::filter(., type==nodetype) %>% #Grab network
+    dplyr::filter(., is.na(globkm)==F & is.na(envarea)==F) %>% #filter to complete cases
+  MCMCglmm::MCMCglmm(fixed=z.close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)), data=., thin=1, burnin=8000)
+  }
+  
+  bayesdf <- data.frame(bayesamp$Sol) #extract samples
+  colnames(bayesdf) <- c("Intercept", "geo", "env", "interaction")
+  bayesdf$type <- nodetype
+  bayesdf$net <- netype
+  bayeslong <- pivot_longer(bayesdf, cols=c(1:4), names_to="param")
+  return(bayeslong)
+}
+
+bayesoutLoc <- bayesRunlocal(netype="Bird", nodetype = "Bird")
+bayesoutLoc <- rbind(bayesoutLoc, bayesRunlocal(netype="Bird", nodetype = "Plant"))
+bayesoutLoc <- rbind(bayesoutLoc, bayesRunlocal(netype="Insect", nodetype = "Plant"))
+bayesoutLoc <- rbind(bayesoutLoc, bayesRunlocal(netype="Insect", nodetype = "Insect"))
+bayesoutLoc$combo <- paste(bayesoutLoc$type, bayesoutLoc$net, sep="-")
+
+bayesoutLoc$names <- c("Bird-Bird"="Avian Floral Visitor", "Plant-Bird"="Avian-Visited Plant", "Plant-Insect"="Insect-Visited Plant", "Insect-Insect"="Insect Floral Visitor")[bayesoutLoc$combo]
+```
+
+And creating plots
+
+```{r}
+#pdf(file="figs/local_bayesplot.pdf", width=7, height=11)
+bayesoutLoc %>% dplyr::filter(., param!="Intercept") %>%
+ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
+    stat_density_ridges(scale = 1,
+    geom = "density_ridges_gradient",
+    calc_ecdf = TRUE,
+    quantiles = c(0.025, 0.975),
+    rel_min_height=0.01
+  )+
+  theme_classic()+
+  geom_vline(xintercept=0, col="red", linetype="dashed")+
+  facet_wrap(~param, ncol=1,
+    labeller = as_labeller(c(
+      geo = "Geographic Range",
+      env = "Environmental Range",
+      interaction = "Interaction"
+    )))+
+  scale_fill_manual(values = c("lightgrey", "dodgerblue", "lightgrey"))+ 
+  guides(fill="none")+
+  ylab("")+
+  xlab("Coefficient value")+
+  theme(axis.text.y=element_text(size=12), strip.text.x = element_text(size = 16))
+#dev.off()
+
+
+```
+pMCMC
+
+```{r}
+bayeLocsum <- bayesoutLoc %>% 
+  dplyr::group_by(., combo, param) %>% 
+  dplyr::summarise(., leftail=sum(value<0)/5000, rightail=sum(value>0)/5000)%>%
+  dplyr::mutate(pMCMC = 2*pmin(leftail, rightail)) #grab min tail and double, also drop groupings in case
+
+
+bayeLocsum %>% dplyr::filter(., param!="Intercept")
+```
+
+
 
 Metaweb connectance
 ```{r}
