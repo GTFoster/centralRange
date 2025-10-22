@@ -583,58 +583,66 @@ samps <- as_draws_df(bayes.brms)
 
 ```{r}
 #Sig in geo raw: Visiting Insects, Insect-Visited Plants, Bird-Visited Plants
-clrs <- c("#845ec2", "#00896f")
+clrs <- c("#845ec2", "#00896f", "#ad85ed", "#02b593")
+
+net.labs <- c("Avian Network", "Insect Network")
+names(net.labs) <- c("Bird", "Insect")
+
+compositeMeta <- compositeMeta %>% 
+  dplyr::mutate(., id=paste(net, type, sep="-"))
   
-geoRngMeta <- compositeMeta %>% 
-  ggplot(., aes(x=scale(log(globkm)), y=close, col=net))+
+geoRngMeta <-  ggplot(compositeMeta, aes(x=scale(log(globkm)), y=close, col=as.factor(id)))+
   geom_point(alpha=0.7)+
   geom_smooth(method="lm", data=dplyr::filter(compositeMeta, type!="Floral Visitor" | net=="Insect"))+ #Remove insignificant coefficients from the lm data
-  facet_wrap(~type, labeller = labeller(type = c("Floral Visitors", "Plants")))+
+  facet_wrap(~net, labeller = labeller(net = net.labs))+
   theme_classic()+
   xlab("Scaled Log Geographic Area")+
-  ylab("Closeness Centrality in \n Global Metaweb ")+guides(col=guide_legend(title="MetaNetwork"))+
-  scale_color_manual(labels = c("Avian-Plant", "Insect-Plant"), values = clrs)+
-  theme(legend.position=c(0.15,.85), guide_legend(override.aes=list(fill=NA)))+
+  ylab("Closeness Centrality in \n Global Metaweb ")+
+  #guides(col=guide_legend(title="MetaNetwork"))+
+  scale_color_manual(values = clrs)+
+  theme(legend.position="none", guide_legend(override.aes=list(fill=NA)))+
        theme(strip.text.x = element_text(size = 14))
+
+
 
 #Sig in env raw: Insect-Visited Plants
 envRngMeta <- compositeMeta %>% 
-  ggplot(., aes(x=scale(log(envarea)), y=close, col=net))+
+  ggplot(., aes(x=scale(log(envarea)), y=close, col=as.factor(id)))+
   geom_point(alpha=0.7)+
   geom_smooth(method="lm", data=dplyr::filter(compositeMeta, type=="Plant" & net=="Insect"))+
-  facet_wrap(~type)+
+  facet_wrap(~net, labeller = labeller(net = net.labs))+
   theme_classic()+
   xlab("Scaled Log Environmental Area")+
   ylab("Closeness Centrality in \n Global Metaweb ")+guides(col="none")+
-  scale_color_manual(labels = c("Avian-Plant", "Insect-Plant"), values = clrs)+
+  scale_color_manual(values = clrs)+
        theme(strip.text.x = element_text(size = 14))
 
 #Sig in geo.z: Bird-Visited Plants
 geoRngMeta.z <- compositeMeta %>% 
-  ggplot(., aes(x=scale(log(globkm)), y=close.z, col=net))+
+  ggplot(., aes(x=scale(log(globkm)), y=close.z, col=as.factor(id)))+
   geom_point(alpha=0.7)+
   geom_smooth(method="lm", data=dplyr::filter(compositeMeta, type=="Plant" & net=="Bird"))+
-  facet_wrap(~type)+
+  facet_wrap(~net, labeller = labeller(net = net.labs))+
   theme_classic()+
   xlab("Scaled Log Geographic Area")+
   ylab("Closeness Centrality in \n Global Metaweb (Z-transformed)")+guides(col="none")+
-  scale_color_manual(labels = c("Avian-Plant", "Insect-Plant"), values = clrs)+
+  scale_color_manual(values = clrs)+
        theme(strip.text.x = element_text(size = 14))
 
 #Sig in env.z: Insect-Visited Plants, Bird-Visited Plants
 envRngMeta.z <- compositeMeta %>% 
-  ggplot(., aes(x=scale(log(envarea)), y=close.z, col=net))+
+  ggplot(., aes(x=scale(log(envarea)), y=close.z, col=as.factor(id)))+
   geom_point(alpha=0.7)+
   geom_smooth(method="lm", data=dplyr::filter(compositeMeta, type=="Plant"))+
-  facet_wrap(~type)+
+  facet_wrap(~net, labeller = labeller(net = net.labs))+
   theme_classic()+
   xlab("Scaled Log Environmental Area")+
   ylab("Closeness Centrality in \n Global Metaweb (Z-transformed)")+guides(col="none")+
-  scale_color_manual(labels = c("Avian-Plant", "Insect-Plant"), values = clrs)+
+  scale_color_manual(values = clrs)+
        theme(strip.text.x = element_text(size = 14))
 
 #pdf(file="cleanFigs/MetawebCentralityPlot.pdf", width=10, height=8)
-grid.arrange(geoRngMeta, geoRngMeta.z, envRngMeta, envRngMeta.z, nrow=2)
+grid.arrange(envRngMeta, envRngMeta.z, geoRngMeta, geoRngMeta.z, nrow=2)
 #dev.off()
 ```
 
@@ -774,6 +782,21 @@ Avian_visitor.brms <- bmetaCent %>%
                   iter = 5000, # nb of iterations, including burnin
                   warmup = 1000, # burnin
                   thin = 1) # no thinning
+
+plot(Avian_visitor.brms)
+Avian_plant.brms$fit
+Insect_plant.brms$fit
+Insect_visitor.brms$fit
+
+Avian_plant.brms.z$fit
+Avian_plant.brms.z$fit
+Insect_plant.brms.z$fit
+Insect_visitor.brms.z$fit
+
+Avian_plant.brms.local$fit
+Avian_plant.brms.local$fit
+Insect_plant.brms.local$fit
+Insect_visitor.brms.local$fit
 ```
 
 
@@ -811,7 +834,7 @@ metaCentbayes$names <- c("Bird-Bird"="Avian Floral Visitor", "Plant-Bird"="Avian
 metaCentbayes <- dplyr::rename(metaCentbayes, param=name)
 
 
-#pdf(file="figs/leftbayesplot_main.pdf", width=7, height=11)
+#pdf(file="figs/leftbayesplot_main.pdf", width=9, height=11)
 metaCentbayes %>% dplyr::filter(., param!="intercept") %>%
 ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
     stat_density_ridges(scale = 1.5,
@@ -832,15 +855,17 @@ ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
   guides(fill="none")+
   ylab("")+
   xlab("Coefficient value")+
-  theme(axis.text.y=element_text(size=12), strip.text.x = element_text(size = 16))
+  theme(axis.text.y=element_text(size=12), strip.text.x = element_text(size = 16))+ 
+  xlim(-0.01, 0.02)
 #dev.off()
 
-nrow(temp)
 
 bayeClosesum <- metaCentbayes %>% 
   dplyr::group_by(., combo, param) %>% 
   dplyr::summarise(., leftail=sum(value<0)/nrow(temp), rightail=sum(value>0)/nrow(temp))%>%
   dplyr::mutate(pMCMC = 2*pmin(leftail, rightail)) #grab min tail and double, also drop groupings in case
+
+bayeClosesum %>% dplyr::filter(., param !="intercept")
 ```
 
 Repeat for z-standardized version
@@ -927,7 +952,7 @@ metaCentbayes.z <- dplyr::rename(metaCentbayes.z, param=name)
 
 ```{r}
 
-#pdf(file="figs/rightbayesplot_main.pdf", width=5, height=11)
+pdf(file="figs/rightbayesplot_main.pdf", width=9, height=11)
 metaCentbayes.z %>% dplyr::filter(., param!="intercept") %>%
 ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
     stat_density_ridges(scale = 1,
@@ -948,7 +973,8 @@ ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
   guides(fill="none")+
   ylab("")+
   xlab("Coefficient value")+
-  theme(axis.text.y=element_text(size=12), strip.text.x = element_text(size = 16))
+  theme(axis.text.y=element_text(size=12), strip.text.x = element_text(size = 16))+ 
+  xlim(-0.3, 0.5)
 #dev.off()
 
 
@@ -957,69 +983,75 @@ bayeZsum <- metaCentbayes.z %>%
   dplyr::group_by(., combo, param) %>% 
   dplyr::summarise(., leftail=sum(value<0)/nrow(temp), rightail=sum(value>0)/nrow(temp))%>%
   dplyr::mutate(pMCMC = 2*pmin(leftail, rightail)) #grab min tail and double, also drop groupings in case
+
+bayeZsum %>% dplyr::filter(., param != "intercept")
 ```
 
 
 Plotting the effects of range size on local centrality
 ```{r}
 #Sig in geo raw: Insect Pollinators, Insect Pollinated Plants
-clrs <- c("#ad85ed", "#02b593")
-  
+clrs <- c("#845ec2", "#00896f", "#ad85ed", "#02b593")
+
+net.labs <- c("Avian Network", "Insect Network")
+names(net.labs) <- c("Bird", "Insect")
+
+compositeLocal$id <- paste(compositeLocal$net, compositeLocal$type)
+
 geoRngLocal <- compositeLocal %>% 
-  ggplot(., aes(x=scale(log(globkm)), y=close, col=net))+
-  geom_point(alpha=0.4)+
+  ggplot(., aes(x=scale(log(globkm)), y=close, col=as.factor(id)))+
+  geom_point(alpha=0.7)+
   geom_smooth(method="lm", data=dplyr::filter(compositeLocal, net=="Insect"))+ #Remove insignificant coefficients from the lm data
-  facet_wrap(~type, labeller = labeller(type = c("Floral Visitors", "Plants")))+
+  facet_wrap(~net, labeller = labeller(net = net.labs))+
   theme_classic()+
   xlab("Scaled Log Geographic Area")+
   ylab("Closeness Centrality in \n Local Web")+guides(col=guide_legend(title="MetaNetwork"))+
-  scale_color_manual(labels = c("Avian-Plant", "Insect-Plant"), values = clrs)+
-  theme(legend.position=c(0.15,.85), guide_legend(override.aes=list(fill=NA)))+
+  scale_color_manual(values = clrs)+
+  theme(legend.position="none", guide_legend(override.aes=list(fill=NA)))+
        theme(strip.text.x = element_text(size = 14))
 
 #Sig in env raw: Insect Pollinated Plants
 envRngLocal <- compositeLocal %>% 
-  ggplot(., aes(x=scale(log(envarea)), y=close, col=net))+
-  geom_point(alpha=0.4)+
+  ggplot(., aes(x=scale(log(envarea)), y=close, col=as.factor(id)))+
+  geom_point(alpha=0.7)+
   geom_smooth(method="lm", data=dplyr::filter(compositeLocal, type=="Plant" & net=="Insect"))+
-  facet_wrap(~type)+
+  facet_wrap(~net, labeller = labeller(net = net.labs))+
   theme_classic()+
   xlab("Scaled Log Environmental Area")+
   ylab("Closeness Centrality in \n Local Web")+guides(col="none")+
-  scale_color_manual(labels = c("Avian-Plant", "Insect-Plant"), values = clrs)+
+  scale_color_manual(values = clrs)+
        theme(strip.text.x = element_text(size = 14))
 
 #Sig in geo.z: 
 geoRngLocal.z <- compositeLocal %>% 
-  ggplot(., aes(x=scale(log(globkm)), y=z.close, col=net))+
-  geom_point(alpha=0.4)+
+  ggplot(., aes(x=scale(log(globkm)), y=z.close, col=as.factor(id)))+
+  geom_point(alpha=0.7)+
   #geom_smooth(method="lm", data=dplyr::filter(compositeLocal, type=="Plant" & net=="Bird"))+ #no sig relationships
-  facet_wrap(~type)+
+  facet_wrap(~net, labeller = labeller(net = net.labs))+
   theme_classic()+
   xlab("Scaled Log Geographic Area")+
   ylab("Closeness Centrality in \n Local Web (Z-transformed)")+guides(col="none")+
-  scale_color_manual(labels = c("Avian-Plant", "Insect-Plant"), values = clrs)+
+  scale_color_manual(values = clrs)+
        theme(strip.text.x = element_text(size = 14))
 
 #Sig in env.z: Insect Pollinated Plants
 envRngLocal.z <- compositeLocal %>% 
-  ggplot(., aes(x=scale(log(envarea)), y=z.close, col=net))+
-  geom_point(alpha=0.4)+
+  ggplot(., aes(x=scale(log(envarea)), y=z.close, col=as.factor(id)))+
+  geom_point(alpha=0.7)+
   geom_smooth(method="lm", data=dplyr::filter(compositeLocal, type=="Plant" & net=="Insect"))+
-  facet_wrap(~type)+
+  facet_wrap(~net, labeller = labeller(net = net.labs))+
   theme_classic()+
   xlab("Scaled Log Environmental Area")+
   ylab("Closeness Centrality in \n Local Web (Z-transformed)")+guides(col="none")+
-  scale_color_manual(labels = c("Avian-Plant", "Insect-Plant"), values = clrs)+
+  scale_color_manual(values = clrs)+
        theme(strip.text.x = element_text(size = 14))
 
 #pdf(file="cleanFigs/LocalCentralityPlot.pdf", width=10, height=8)
 grid.arrange(geoRngLocal, geoRngLocal.z, envRngLocal, envRngLocal.z, nrow=2)
 #dev.off()
 
-#dev.off()
 #pdf(file="cleanFigs/LocalCentralityPlot_Small.pdf", width=10, height=8)
-grid.arrange(geoRngLocal.z, envRngLocal.z, nrow=2)
+grid.arrange(envRngLocal.z, geoRngLocal.z, nrow=2)
 #dev.off()
 ```
 
@@ -1089,8 +1121,79 @@ Avian_visitor.brms.local <- localbCent %>%
                   iter = 5000, # nb of iterations, including burnin
                   warmup = 1000,
       thin=1) # burnin
-     
 
+#bayesplot::mcmc_scatter(as.matrix(Avian_visitor.brms.local), pars = c("b_scalelogglobkm", "b_scalelogenvarea"))+geom_vline(xintercept=0)+geom_hline(yintercept=0)
+
+p1 <- bayesplot::mcmc_pairs(as.matrix(Avian_visitor.brms.local),pars = c("b_scalelogglobkm","b_scalelogenvarea"))
+
+ret <- as.data.frame(Avian_visitor.brms.local)
+cor.test(ret$b_scalelogglobkm, ret$b_scalelogenvarea)
+
+#bayesplot::mcmc_areas(as.matrix(Avian_visitor.brms.local),prob_outer = .99,pars = c("b_scalelogglobkm","b_scalelogenvarea","b_scalelogglobkm:scalelogenvarea","b_Intercept"))
+
+#(loog <- brms::loo(Avian_visitor.brms.local))
+
+
+
+```
+
+Plotting local pairsplots
+```{r}
+
+dimnames(Avian_visitor.brms.local)
+p1 <- bayesplot::mcmc_pairs(as.matrix(Avian_visitor.brms.local), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"))
+
+p2 <- bayesplot::mcmc_pairs(as.matrix(Insect_visitor.brms.local), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"))
+
+
+pdf(file="Pairplot_Visitors_Local.pdf", width=8, height=10)
+grid.arrange(
+  arrangeGrob(p1, top = "Avian Visitors (Local)"),
+  arrangeGrob(p2, top = "Insect Visitors (Local)"),
+  ncol = 1
+)
+
+
+p3 <- bayesplot::mcmc_pairs(as.matrix(Avian_plant.brms.local), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"))
+
+p4 <- bayesplot::mcmc_pairs(as.matrix(Insect_plant.brms.local), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"))
+
+
+?bayesplot::mcmc_pairs()
+pdf(file="Pairplot_Plants_Local.pdf", width=8, height=10)
+grid.arrange(
+  arrangeGrob(p3, top = "Avian-Visited Plants (Local)"),
+  arrangeGrob(p4, top = "Insect-Visited Plants (Local)"),
+  ncol = 1
+)
+```
+
+
+
+```{r}
+p5 <- bayesplot::mcmc_pairs(as.matrix(Avian_visitor.brms), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"))
+
+p6 <- bayesplot::mcmc_pairs(as.matrix(Insect_visitor.brms), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"))
+
+p7 <- bayesplot::mcmc_pairs(as.matrix(Insect_visitor.brms.z), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"))
+
+p8 <- bayesplot::mcmc_pairs(as.matrix(Insect_visitor.brms.z), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"))
+
+
+
+pdf(file="Pairplot_Visitors_Metaweb.pdf", width=8, height=10)
+grid.arrange(
+  arrangeGrob(p5, top = "Avian Visitors (Metaweb)"),
+  arrangeGrob(p6, top = "Insect Visitors (Metaweb)"),
+  arrangeGrob(p7, top = "Avian Visitors (Z-transformed Metaweb)"),
+  arrangeGrob(p8, top = "Insect Visitors (Z-transformed Metaweb)"),
+  ncol = 2
+)
+dev.off()
+```
+
+
+```{r}
 
 samps <- as_draws_df(Insect_visitor.brms.local) %>% 
   dplyr::select(., b_Intercept, b_scalelogglobkm, b_scalelogenvarea, "b_scalelogglobkm:scalelogenvarea") %>%
@@ -1121,14 +1224,15 @@ localCentbayes$combo <- paste(localCentbayes$type, localCentbayes$net, sep="-")
 
 localCentbayes$names <- c("Bird-Bird"="Avian Floral Visitor", "Plant-Bird"="Avian-Visited Plant", "Plant-Insect"="Insect-Visited Plant", "Insect-Insect"="Insect Floral Visitor")[localCentbayes$combo]
 
-localCentbayes <- dplyr::rename(localCentbayes, param=name) 
-      
+localCentbayes <- dplyr::rename(localCentbayes, param=name)
 ```
+
+
 
 And creating plots
 
 ```{r}
-#pdf(file="figs/local_bayesplot.pdf", width=7, height=11)
+pdf(file="figs/local_bayesplot.pdf", width=7, height=11)
 localCentbayes %>% dplyr::filter(., param!="intercept") %>%
 ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
     stat_density_ridges(scale = 1,
@@ -1150,11 +1254,11 @@ ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
   ylab("")+
   xlab("Coefficient value")+
   theme(axis.text.y=element_text(size=12), strip.text.x = element_text(size = 16))
-#dev.off()
+dev.off()
 
 
 ```
-pMCMC
+
 
 ```{r}
 bayeLocsum <- localCentbayes %>% 
@@ -1314,7 +1418,7 @@ Birdweb <- dplyr::select(Birdweb, species2, site_index) %>%
   unique() %>% 
   group_by(., species1) %>%
   dplyr::summarise(n_extraguildCooccur_sp1 = n(), .groups = "drop") %>%
-  left_join(Birdweb, ., by=c("species2"))
+  left_join(Birdweb, ., by=c("species1"))
 
 
 ####NOw recreate for species 2
@@ -1432,6 +1536,8 @@ compositeMeta2 %>%
        theme(strip.text.x = element_text(size = 14))
 #dev.off()
 ```
+#Messing around with beta diversity partitioning
+
 Needs a site by species matrix
 ```{r, eval==F}
 #cycle across insect pollinators
@@ -1540,8 +1646,33 @@ hist(imetaCent$turnover/imetaCent$sorenson)
 ```
 
 #New aside:
-Comparing to BIEN
+Comparing to BIEN. It still seems like these only include new world species. Maybe I can check the new stuff?
 ```{r}
+library(BIEN)
 
+bmetaCent$node[bmetaCent$type=="Plant"][1:10]
+BIEN_ranges_species_bulk(species=bmetaCent$node[bmetaCent$type=="Plant"], directory="data/bien/")
+BIEN_ranges_species_bulk(species="Castanea crenata", directory="data/bien/")
+
+
+sf <- st_read(dsn = "data/bien/1/", layer = "Castanea_crenata")
+
+plot(sf)
+
+
+library(BIEN)
+library(ape) #Package for working with phylogenies in R
+library(maps) #Useful for making quick maps of occurrences
+library(sf) # A package for spatial data  
+map('world', fill = TRUE ,
+      col= "grey",
+      bg = "light blue",
+      xlim = c(-125, -70),
+      ylim = c(30, 48))
+
+#Now, we can add the range map:
+plot(sf,
+       col = "green",
+       add = TRUE)
 ```
 
