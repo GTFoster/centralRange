@@ -119,8 +119,8 @@ Insectweb <- Insectweb %>%
   mutate(site_index = cur_group_id()) %>%
   ungroup()
 
-save(InsectMeta, imeta, BirdMeta, bmeta, file="cleanData/metawebs.RDA")
-save(Birdweb, Insectweb, file="cleanData/localwebs.RDA") #Save the individual webs
+#save(InsectMeta, imeta, BirdMeta, bmeta, file="cleanData/metawebs.RDA")
+#save(Birdweb, Insectweb, file="cleanData/localwebs.RDA") #Save the individual webs
 ```
 
 A quick check-in point, loading in our metaweb data (both in igraph and df forms)
@@ -952,7 +952,7 @@ metaCentbayes.z <- dplyr::rename(metaCentbayes.z, param=name)
 
 ```{r}
 
-pdf(file="figs/rightbayesplot_main.pdf", width=9, height=11)
+#pdf(file="figs/rightbayesplot_main.pdf", width=9, height=11)
 metaCentbayes.z %>% dplyr::filter(., param!="intercept") %>%
 ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
     stat_density_ridges(scale = 1,
@@ -1141,9 +1141,9 @@ Plotting local pairsplots
 ```{r}
 
 dimnames(Avian_visitor.brms.local)
-p1 <- bayesplot::mcmc_pairs(as.matrix(Avian_visitor.brms.local), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"))
+p1 <- bayesplot::mcmc_pairs(as.matrix(Avian_visitor.brms.local), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"), off_diag_fun="hex")
 
-p2 <- bayesplot::mcmc_pairs(as.matrix(Insect_visitor.brms.local), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"))
+p2 <- bayesplot::mcmc_pairs(as.matrix(Insect_visitor.brms.local), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"), off_diag_fun="hex")
 
 
 pdf(file="Pairplot_Visitors_Local.pdf", width=8, height=10)
@@ -1154,12 +1154,11 @@ grid.arrange(
 )
 
 
-p3 <- bayesplot::mcmc_pairs(as.matrix(Avian_plant.brms.local), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"))
+p3 <- bayesplot::mcmc_pairs(as.matrix(Avian_plant.brms.local), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"), off_diag_fun="hex")
 
-p4 <- bayesplot::mcmc_pairs(as.matrix(Insect_plant.brms.local), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"))
+p4 <- bayesplot::mcmc_pairs(as.matrix(Insect_plant.brms.local), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"), off_diag_fun="hex")
 
 
-?bayesplot::mcmc_pairs()
 pdf(file="Pairplot_Plants_Local.pdf", width=8, height=10)
 grid.arrange(
   arrangeGrob(p3, top = "Avian-Visited Plants (Local)"),
@@ -1171,26 +1170,61 @@ grid.arrange(
 
 
 ```{r}
-p5 <- bayesplot::mcmc_pairs(as.matrix(Avian_visitor.brms), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"))
+p5 <- bayesplot::mcmc_pairs(as.matrix(Avian_visitor.brms), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"), off_diag_fun="hex")
 
-p6 <- bayesplot::mcmc_pairs(as.matrix(Insect_visitor.brms), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"))
+p6 <- bayesplot::mcmc_pairs(as.matrix(Insect_visitor.brms), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"), off_diag_fun="hex")
 
-p7 <- bayesplot::mcmc_pairs(as.matrix(Insect_visitor.brms.z), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"))
+p7 <- bayesplot::mcmc_pairs(as.matrix(Avian_visitor.brms.z), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"), off_diag_fun="hex")
 
-p8 <- bayesplot::mcmc_pairs(as.matrix(Insect_visitor.brms.z), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"))
+p8 <- bayesplot::mcmc_pairs(as.matrix(Insect_visitor.brms.z), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"), off_diag_fun="hex")
 
 
-
-pdf(file="Pairplot_Visitors_Metaweb.pdf", width=8, height=10)
+pdf(file="Pairplot_Avian_Visitors_Metaweb.pdf", width=8, height=10)
 grid.arrange(
   arrangeGrob(p5, top = "Avian Visitors (Metaweb)"),
+  arrangeGrob(p7, top = "Avian Visitiors (Metaweb Z-transformed)"),
+  ncol = 1
+)
+dev.off()
+
+pdf(file="Pairplot_Insect_Visitors_Metaweb.pdf", width=8, height=10)
+grid.arrange(
   arrangeGrob(p6, top = "Insect Visitors (Metaweb)"),
-  arrangeGrob(p7, top = "Avian Visitors (Z-transformed Metaweb)"),
-  arrangeGrob(p8, top = "Insect Visitors (Z-transformed Metaweb)"),
-  ncol = 2
+  arrangeGrob(p8, top = "Insect Visitiors (Metaweb Z-transformed)"),
+  ncol = 1
+)
+dev.off()
+
+
+```
+
+```{r}
+p9 <- bayesplot::mcmc_pairs(as.matrix(Avian_plant.brms), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"), off_diag_fun="hex")
+
+p10 <- bayesplot::mcmc_pairs(as.matrix(Avian_plant.brms.z), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"), off_diag_fun="hex")
+
+p11 <- bayesplot::mcmc_pairs(as.matrix(Insect_plant.brms), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"), off_diag_fun="hex")
+
+p12 <- bayesplot::mcmc_pairs(as.matrix(Insect_plant.brms.z), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"), off_diag_fun="hex")
+
+
+pdf(file="Pairplot_Avian_Plants_Metaweb.pdf", width=8, height=10)
+grid.arrange(
+  arrangeGrob(p9, top = "Avian-Visited Plants (Metaweb)"),
+  arrangeGrob(p10, top = "Avian-Visited Plants (Metaweb Z-transformed)"),
+  ncol = 1
+)
+dev.off()
+
+pdf(file="Pairplot_Insect_Plants_Metaweb.pdf", width=8, height=10)
+grid.arrange(
+  arrangeGrob(p11, top = "Insect-Visited Plants (Metaweb)"),
+  arrangeGrob(p12, top = "Insect-Visited Plants (Metaweb Z-transformed)"),
+  ncol = 1
 )
 dev.off()
 ```
+
 
 
 ```{r}
@@ -1645,9 +1679,215 @@ summary(lm(sorenson~log(nsites), data=bmetaCent))
 hist(imetaCent$turnover/imetaCent$sorenson)
 ```
 
+```{r}
+imetaCent$close_scaled <- scale(imetaCent$close)
+bmetaCent$close_scaled <- scale(bmetaCent$close)
+
+
+dplyr::filter(imetaCent, nsites>1) %>%
+ggplot(data=., aes(x=turnover, y=rank(close_scaled)-rank(close.z))) + 
+  geom_point()+
+  geom_smooth(method="lm")
+
+dplyr::filter(imetaCent, nsites>1) %>%
+ggplot(data=., aes(x=turnover, y=log(globkm))) + 
+  geom_point()+
+  geom_smooth(method="lm")
+
+plot(x=rank(imetaCent$close.z), y=rank(imetaCent$close_scaled))
+cor.test(imetaCent$close.z, imetaCent$close_scaled, method="spearman")
+cor.test(imetaCent$close.z, imetaCent$close_scaled, method="pearson")
+
+p1 <- imetaCent %>% dplyr::filter(., is.na(turnover)==F & type=="Plant") %>%
+ggplot(., aes(x = close_scaled, y = close.z, color = turnover)) +
+  geom_point() + geom_smooth(method="lm") +
+  scale_color_viridis_c()+theme_classic()+
+  ggtitle("Insect-Pollinated Plants")
+
+p2 <- imetaCent %>% dplyr::filter(., is.na(turnover)==F & type=="Insect") %>%
+ggplot(., aes(x = close_scaled, y = close.z, color = turnover)) +
+  geom_point() + geom_smooth(method="lm") +
+  scale_color_viridis_c()+theme_classic()+
+  ggtitle("Insect Floral Visitors")
+
+p3 <- bmetaCent %>% dplyr::filter(., is.na(turnover)==F & type=="Plant") %>%
+ggplot(., aes(x = close_scaled, y = close.z, color = turnover)) +
+  geom_point() + geom_smooth(method="lm") +
+  scale_color_viridis_c()+theme_classic()+
+  ggtitle("Bird-Pollinated Plants")
+
+p4 <- bmetaCent %>% dplyr::filter(., is.na(turnover)==F & type=="Bird") %>%
+ggplot(., aes(x = close_scaled, y = close.z, color = turnover)) +
+  geom_point() + geom_smooth(method="lm") +
+  scale_color_viridis_c()+theme_classic()+
+  ggtitle("Bird Floral Visitors")
+
+
+pdf(file="closenesscomparison.pdf")
+grid.arrange(p1,p2,p3,p4, ncol=2)
+dev.off()
+
+
+```
+
+
+```{r}
+imeta2 <- localiCent %>% 
+  group_by(., node) %>% 
+  dplyr::summarise(., localclose=mean(close), localclosesd=sd(close)) %>%
+  left_join(imetaCent, ., by="node")
+
+bmeta2 <- localbCent %>% 
+  group_by(., node) %>% 
+  dplyr::summarise(., localclose=mean(close), localclosesd=sd(close)) %>%
+  left_join(bmetaCent, ., by="node")
+
+meta2 <- rbind(bmeta2, imeta2)
+meta2$combo <- paste(meta2$net, meta2$type, sep="-")
+
+
+
+supp.labs <- c("Bird-Pollinated Plants", "Bird Floral Visitors", "Insect-Pollinated Plants", "Insect Floral Visitors")
+names(supp.labs) <- c("Bird-Plant", "Bird-Bird", "Insect-Plant", "Insect-Insect")
+
+
+pdf(file="Scratch_turnoverplot.pdf", width=8, height=8)
+meta2 %>% 
+  dplyr::filter(., nsites>2 & is.na(globkm)==F) %>%
+  ggplot(., aes(x = turnover, 
+                      y = scale(close) - scale(localclose), 
+                      color = log(globkm)))+
+  geom_rect(aes(xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = 0), 
+            fill = "lightcoral", col="black")+
+  geom_rect(aes(xmin = -Inf, xmax = Inf, ymin = 0, ymax = Inf), 
+            fill = "lightblue", col="black") + 
+  geom_point() +
+  geom_smooth(method = "lm") +
+  scale_color_viridis_c() +
+  labs( x = "Interaction Turnover",
+       color = "Range size (log km²)")+
+  theme_classic()+
+  facet_wrap(~combo, labeller = as_labeller(supp.labs))+
+  ylab(expression("Scaled Metaweb Centrality - Scaled Mean Local Centrality")) #IDK why it keeps cutting this off, but using expression to force prevent that from happening
+dev.off()
+```
+
+
+```{r}
+ggplot(meta2, aes(x=log(nsites), y=close, col=turnover))+
+  geom_point()+
+  scale_color_viridis_c() +
+  theme_classic()
+```
+
+
+
+```{r}
+library(mgcv)
+meta2turn <- meta2 %>% dplyr::filter(., is.na(turnover)==F & node!="Apis mellifera") #Only grab species that have turnover component (occur at multiple sites) 
+#gam_model <- mgcv::gam(formula=close~s(nsites, k = 2)+s(turnover), data=meta2turn) 
+
+load("gamtroubles.RDA")
+#save(meta2turn, gam_model, new_data, file="gamtroubles.RDA")
+gam_model <- mgcv::gam(close ~ te(nsites, turnover), data = meta2turn)
+
+mgcv::gam.check(gam_model)
+
+new_data <- expand.grid(nsites = seq(min(meta2turn$nsites), max(meta2turn$nsites), length=100),
+                           turnover = quantile(meta2turn$turnover, c(0, 0.1,0.25,0.5,0.75,0.9, 1)))
+new_data$pred <- predict(gam_model, new_data)
+
+#pdf("figs/GAM_vis1.pdf")
+ggplot(meta2turn, aes(x=nsites, y=close, col=turnover))+ 
+  geom_point()+ 
+  scale_x_log10()+
+  scale_color_viridis_c() + 
+  theme_classic()+ 
+  theme_classic()+ 
+  geom_line(aes(x=nsites, y=pred, col=turnover, group=turnover), data=new_data)+
+  xlab("Number of sites (log scale)")+
+  ylab("Closeness Centrality in Global Metaweb")+
+  labs(color="Interaction Turnover")
+#dev.off()
+
+```
+
+
+```{r}
+library(mgcv)
+vis.gam(gam_model, 
+        view = c("nsites", "turnover"), 
+        plot.type = "contour",  # or "persp" for 3D surface
+        color = "topo", 
+        too.far = 0.05, 
+        main = "Effect of nsites and turnover on centrality")
+
+new_data <- expand.grid(
+  nsites = seq(min(meta2turn$nsites), max(meta2turn$nsites), length = 100),
+  turnover = seq(min(meta2turn$turnover), max(meta2turn$turnover), length = 100)
+)
+new_data$pred <- predict(gam_model, new_data)
+
+library(visreg)
+pdf(file="3dplot.pdf")
+visreg2d(gam_model, "nsites", "turnover", plot.type = "persp",
+         color.palette = viridisLite::viridis)
+dev.off()
+
+library(gratia)
+
+pdf("figs/GAM_vis2.pdf")
+draw(gam_model, select = 1, contour = TRUE)+
+  theme_classic()+
+  xlab("Number of sites (log scale)")+
+  ylab("Closeness Centrality in Global Metaweb")+
+  ggtitle("")
+dev.off()
+```
+
+
+```{r}
+load("cleanData/metawebs.RDA")
+```
+
+Creating a really simple supplemental plot of sites. 
+```{r}
+sites <- dplyr::select(Birdweb, network_name, location_address, latitude, longitude) %>% 
+  unique() %>% 
+  dplyr::mutate(., type="Avian")
+
+sites <- dplyr::select(Insectweb, network_name, location_address, latitude, longitude) %>% 
+  unique() %>% 
+  dplyr::mutate(., type="Insect") %>%
+  rbind(., sites)
+
+
+world <- ggplot2::map_data("world")
+
+#pdf(file="sitemap.pdf", width=8, height=5)
+ggplot() +
+  geom_polygon(data = world, aes(x=long, y = lat, group = group)) + 
+  coord_fixed(1.3)+
+  theme_classic()+
+  geom_point(data=sites, aes(x=longitude, y=latitude, col=type))+
+  facet_grid(~type)+
+  xlab("Longitude")+
+  ylab("Latitude")+
+  labs(color = "Network Type")
+#dev.off()
+```
+
+
+
+```{r}
+
+```
+
+
+
 #New aside:
 Comparing to BIEN. It still seems like these only include new world species. Maybe I can check the new stuff?
-```{r}
+```{r, eval=FALSE}
 library(BIEN)
 
 bmetaCent$node[bmetaCent$type=="Plant"][1:10]

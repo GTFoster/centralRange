@@ -1144,7 +1144,7 @@ imp_long <- imp_long %>% group_by(., model) %>%
   ungroup()
 
 
-pdf(file="figs/RF_importance.pdf", width=8, height=8)
+#pdf(file="figs/RF_importance.pdf", width=8, height=8)
 ggplot(data=imp_long, aes(y=vars, x=relImportance, fill=model))+
   geom_col(position = position_dodge(), width = 0.9)+
   theme_classic()+
@@ -1319,3 +1319,10 @@ hist(bmetaCent$z.close.meta, breaks=25, xlab="Z-transformed closeness", main="Z-
   
 plot(x=scale(bmetaCent$close), y=scale(bmetaCent$z.close.meta))
 ```
+
+
+```{r}
+
+
+```
+
