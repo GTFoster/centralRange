@@ -1,0 +1,195 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Here's just a bit of playing around code for creating the conceptual figure
+```{r}
+library(vegan)
+library(magrittr)
+library(igraph)
+
+nplant <- 7
+npol <- 7
+
+set.seed(1)
+
+mat1 <- matrix(ncol=nplant, nrow=npol, 0)
+mat1[sample(1:length(mat1), replace=FALSE, size=10)] <- 1 #add in 20 random interactions
+mat1[3,1] <- 1 #remove missing
+
+colnames(mat1) <- c("C","A","B","F","G","D","E")
+rownames(mat1) <- c("4","5","2","3","6","7","1")
+
+mat1null <- vegan::nullmodel(mat1, method = "quasiswap") %>% simulate(., nsim = 1) %>% matrix(., ncol=nplant, nrow=npol)
+
+colnames(mat1null) <- c("C","A","B","F","G","D","E")
+rownames(mat1null) <- c("4","5","2","3","6","7","1")
+
+
+g1 <- igraph::graph_from_incidence_matrix(mat1, directed=F) 
+g1null <- igraph::graph_from_incidence_matrix(mat1null, directed=F) 
+
+plot(g1, layout=layout_as_bipartite(g1))
+plot(g1null, layout=layout_as_bipartite(g1))
+```
+
+```{r}
+set.seed(2)
+
+mat2 <- matrix(ncol=nplant, nrow=npol, 0)
+mat2[sample(1:length(mat2), replace=FALSE, size=10)] <- 1 #add in 20 random interactions
+mat2[3,7] <- 1 #remove missing
+mat2[7,7] <- 1 #remove missing
+mat2[7,4] <- 1 #remove missing
+mat2[7,6] <- 1 #remove missing
+mat2[2,7] <- 1
+
+colnames(mat2) <- c("I","D","E","G","C","H","F")
+rownames(mat2) <- c("4","7","6","3","5","9","8")
+
+mat2null <- vegan::nullmodel(mat2, method = "quasiswap") %>% simulate(., nsim = 1) %>% matrix(., ncol=nplant, nrow=npol)
+colnames(mat2null) <- c("I","D","E","G","C","H","F")
+rownames(mat2null) <- c("4","7","6","3","5","9","8")
+
+g2 <- igraph::graph_from_incidence_matrix(mat2, directed=F) 
+g2null <- igraph::graph_from_incidence_matrix(mat2null, directed=F) 
+
+plot(g2, layout=layout_as_bipartite(g2))
+plot(g2null, layout=layout_as_bipartite(g2))
+```
+
+```{r}
+set.seed(3)
+
+mat3 <- matrix(ncol=nplant, nrow=npol, 0)
+mat3[sample(1:length(mat3), replace=FALSE, size=10)] <- 1 #add in 20 random interactions
+mat3[2,4] <- 1
+mat3[7,4] <- 1
+
+colnames(mat3) <- c("F","G","L","K","H","I","J")
+rownames(mat3) <- c("11","13","10","12","9","15","14")
+
+mat3null <- vegan::nullmodel(mat3, method = "quasiswap") %>% simulate(., nsim = 1) %>% matrix(., ncol=nplant, nrow=npol)
+colnames(mat3null) <- c("F","G","L","K","H","I","J")
+rownames(mat3null) <- c("11","13","10","12","9","15","14")
+
+g3 <- igraph::graph_from_incidence_matrix(mat3, directed=F) 
+g3null <- igraph::graph_from_incidence_matrix(mat3null, directed=F) 
+
+plot(g3, layout=layout_as_bipartite(g3))
+plot(g3null, layout=layout_as_bipartite(g3))
+```
+
+
+```{r}
+
+metaweb <- igraph::union(g1, g2, g3)
+V(metaweb)
+V(metaweb)$type <- c(rep(T,7), rep(F,7),rep(T,2),rep(F,2),rep(T,6),rep(F,3))
+
+plot(metaweb)
+plot(metaweb, layout=layout_as_bipartite(metaweb))
+
+metaNull <- igraph::union(g1null, g2null, g3null)
+plot(metaNull, layout=layout_as_bipartite(metaweb))
+
+set.seed(1)
+lyt <- layout_as_bipartite(metaweb)
+lyt[7,1] <- 0
+lyt[3,1] <- 1
+lyt[4,1] <- 2
+
+lyt[8,1] <- 2
+lyt[9,1] <- 0
+
+plot(metaweb, layout=lyt)
+plot(metaNull, layout=lyt)
+```
+
+```{r}
+library(scales)
+# colors by node type
+V(g1)$color <- ifelse(in_giant, "black", "white")
+V(g1)$frame.color <- "black"
+V(g1)$label.color <- ifelse(in_giant, "black", "white")
+
+
+
+cent <- igraph::centralization.closeness(g1)$res   # your numeric centrality vector
+
+comp <- components(g1)
+biggest <- which.max(comp$csize)
+in_giant <- comp$membership == biggest   # TRUE for nodes in the largest component
+
+col_fun <- col_numeric(
+    palette = c("gold", "red"),
+    domain  = range(cent, na.rm=T)
+)
+
+
+cols <- ifelse(in_giant, col_fun(cent), "black")
+V(g1)$color <- cols
+
+
+
+
+
+# edge aesthetics
+E(g1)$lwd <- 75   # thicker edges
+E(g1)$color <- "grey20"
+```
+
+
+```{r}
+
+prettygraph <- function(graphint){
+comp <- components(graphint)
+biggest <- which.max(comp$csize)
+in_giant <- comp$membership == biggest   # TRUE for nodes in the largest component
+  # colors by node type
+V(graphint)$color <- ifelse(in_giant, "black", "white")
+V(graphint)$frame.color <- "black"
+V(graphint)$label.color <- ifelse(in_giant, "black", "white")
+
+cent <- igraph::centralization.closeness(graphint)$res   # your numeric centrality vector
+
+
+col_fun <- col_numeric(
+    palette = c("gold", "red"),
+    domain  = range(cent, na.rm=T)
+)
+
+cols <- ifelse(in_giant, col_fun(cent), "black")
+V(graphint)$color <- cols
+
+# edge aesthetics
+E(graphint)$lwd <- 70   # thicker edges
+E(graphint)$color <- "black"
+return(graphint)
+}
+
+g1 <- prettygraph(g1)
+g2 <- prettygraph(g2)
+g3 <- prettygraph(g3)
+
+g1null <- prettygraph(g1null)
+g2null <- prettygraph(g2null)
+g3null <- prettygraph(g3null)
+
+plot(g1, layout=layout_as_bipartite(g1), edge.width = 5, vertex.size=28)
+plot(g1null, layout=layout_as_bipartite(g1), edge.width = 5, vertex.size=28)
+plot(g2, layout=layout_as_bipartite(g2), edge.width = 5, vertex.size=28)
+plot(g2null, layout=layout_as_bipartite(g2), edge.width = 5, vertex.size=28)
+plot(g3, layout=layout_as_bipartite(g3), edge.width = 5, vertex.size=28)
+plot(g3null, layout=layout_as_bipartite(g3), edge.width = 5, vertex.size=28)
+```
+
+```{r}
+metapret <- prettygraph(metaweb)
+metaNullpret <- prettygraph(metaNull)
+
+plot(metapret, layout=layout_as_bipartite(metapret), edge.width = 3, vertex.size=15)
+plot(metaNullpret, layout=layout_as_bipartite(metapret), edge.width = 3, vertex.size=15)
+```
+

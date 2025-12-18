@@ -787,16 +787,6 @@ plot(Avian_visitor.brms)
 Avian_plant.brms$fit
 Insect_plant.brms$fit
 Insect_visitor.brms$fit
-
-Avian_plant.brms.z$fit
-Avian_plant.brms.z$fit
-Insect_plant.brms.z$fit
-Insect_visitor.brms.z$fit
-
-Avian_plant.brms.local$fit
-Avian_plant.brms.local$fit
-Insect_plant.brms.local$fit
-Insect_visitor.brms.local$fit
 ```
 
 
@@ -1032,7 +1022,7 @@ geoRngLocal.z <- compositeLocal %>%
   xlab("Scaled Log Geographic Area")+
   ylab("Closeness Centrality in \n Local Web (Z-transformed)")+guides(col="none")+
   scale_color_manual(values = clrs)+
-       theme(strip.text.x = element_text(size = 14))
+       theme(strip.text.x = element_text(size = 11), axis.title = element_text(size = 9))
 
 #Sig in env.z: Insect Pollinated Plants
 envRngLocal.z <- compositeLocal %>% 
@@ -1044,15 +1034,15 @@ envRngLocal.z <- compositeLocal %>%
   xlab("Scaled Log Environmental Area")+
   ylab("Closeness Centrality in \n Local Web (Z-transformed)")+guides(col="none")+
   scale_color_manual(values = clrs)+
-       theme(strip.text.x = element_text(size = 14))
+       theme(strip.text.x = element_text(size = 11), axis.title = element_text(size = 9))
 
 #pdf(file="cleanFigs/LocalCentralityPlot.pdf", width=10, height=8)
 grid.arrange(geoRngLocal, geoRngLocal.z, envRngLocal, envRngLocal.z, nrow=2)
 #dev.off()
 
-#pdf(file="cleanFigs/LocalCentralityPlot_Small.pdf", width=10, height=8)
+pdf(file="cleanFigs/LocalCentralityPlot_Small.pdf", width=4, height=6.5)
 grid.arrange(envRngLocal.z, geoRngLocal.z, nrow=2)
-#dev.off()
+dev.off()
 ```
 
 #Summary information
@@ -1786,6 +1776,8 @@ ggplot(meta2, aes(x=log(nsites), y=close, col=turnover))+
 library(mgcv)
 meta2turn <- meta2 %>% dplyr::filter(., is.na(turnover)==F & node!="Apis mellifera") #Only grab species that have turnover component (occur at multiple sites) 
 #gam_model <- mgcv::gam(formula=close~s(nsites, k = 2)+s(turnover), data=meta2turn) 
+meta2turn
+mean(meta2turn$turnover)
 
 load("gamtroubles.RDA")
 #save(meta2turn, gam_model, new_data, file="gamtroubles.RDA")
@@ -1814,35 +1806,96 @@ ggplot(meta2turn, aes(x=nsites, y=close, col=turnover))+
 
 
 ```{r}
-library(mgcv)
-vis.gam(gam_model, 
-        view = c("nsites", "turnover"), 
-        plot.type = "contour",  # or "persp" for 3D surface
-        color = "topo", 
-        too.far = 0.05, 
-        main = "Effect of nsites and turnover on centrality")
-
-new_data <- expand.grid(
-  nsites = seq(min(meta2turn$nsites), max(meta2turn$nsites), length = 100),
-  turnover = seq(min(meta2turn$turnover), max(meta2turn$turnover), length = 100)
-)
-new_data$pred <- predict(gam_model, new_data)
-
-library(visreg)
-pdf(file="3dplot.pdf")
-visreg2d(gam_model, "nsites", "turnover", plot.type = "persp",
-         color.palette = viridisLite::viridis)
-dev.off()
-
 library(gratia)
+meta2turn <- meta2 %>% dplyr::filter(., is.na(turnover)==F & node!="Apis mellifera") #Only grab species that have turnover component (occur at multiple sites) 
+#gam_model <- mgcv::gam(formula=close~s(nsites, k = 2)+s(turnover), data=meta2turn) 
 
-pdf("figs/GAM_vis2.pdf")
-draw(gam_model, select = 1, contour = TRUE)+
+gam_close <- mgcv::gam(scale(close) ~ te(nsites, turnover), data = meta2turn)
+gam_close.z <- mgcv::gam(scale(close.z) ~ te(nsites, turnover), data = meta2turn)
+#pdf("figs/GAM_vis2.pdf")
+gratia::draw(gam_close, select = 1, contour = TRUE)+
   theme_classic()+
   xlab("Number of sites (log scale)")+
   ylab("Closeness Centrality in Global Metaweb")+
   ggtitle("")
-dev.off()
+#dev.off()
+
+
+
+draw(gam_close, select = 1, contour = TRUE, n = c(200, 200), too.far = 6) +
+  theme_classic()
+
+library(gratia)
+
+
+# Define extended ranges
+newdat <- expand.grid(
+  nsites = seq(min(meta2turn$nsites), max(meta2turn$nsites), length = 500),
+  turnover = seq(min(meta2turn$turnover), max(meta2turn$turnover), length = 500)
+)
+
+# Extract smooth estimates
+smooth_df <- gratia::smooth_estimates(gam_close, newdata = newdat)
+# Extract smooth estimates
+smooth_df.z <- gratia::smooth_estimates(gam_close.z, newdata = newdat)
+
+# Plot manually
+draw(smooth_df, contour = TRUE) +
+  theme_classic() +
+  xlab("Number of sites (log scale)") +
+  ylab("Closeness Centrality in Global Metaweb")
+
+# Plot manually
+draw(smooth_df.z, contour = TRUE) +
+  theme_classic() +
+  xlab("Number of sites (log scale)") +
+  ylab("Closeness Centrality in Global Metaweb")
+
+
+
+
+
+#pdf("figs/GAM_vis2.pdf")
+gamplot <- gratia::draw(gam_close, select = 1, contour = TRUE, n = c(400,400), dist = 0.15) +
+  theme_classic() +
+  xlab("Number of sites (log scale)") +
+  ylab("Relative Closeness Centrality\nin Global Metaweb") +
+  ggtitle("") +
+  scale_fill_gradientn(colors=c("lightblue","white", "firebrick"), limits = c(-4, 4), na.value = "gray97")+
+  theme(legend.position = c(0.95, 0.06),  
+    legend.justification = c("right", "bottom"),
+    legend.background = element_rect(fill = alpha("gray97", 0.8), colour = NA),
+    legend.key.height = unit(0.2, "in"),
+    legend.key.width = unit(0.2, "in"))
+# dev.off()
+
+gamzplot <- gratia::draw(gam_close.z, select = 1, contour = TRUE, n = c(400,400), dist = 0.15) +
+  theme_classic() +
+  xlab("Number of sites (log scale)") +
+  ylab("Relative Z-transformed Closeness Centrality\nin Global Metaweb") +
+  ggtitle("")+
+  scale_fill_gradientn(colors=c("lightblue","white", "firebrick"), limits = c(-4, 4), na.value = "gray97")+
+  theme(legend.position = c(0.95, 0.06),  
+    legend.justification = c("right", "bottom"),
+    legend.background = element_rect(fill = alpha("gray97", 0.8), colour = NA),
+    legend.key.height = unit(0.2, "in"),
+    legend.key.width = unit(0.2, "in"))
+#dev.off()
+```
+
+```{r}
+
+gam_close <- mgcv::gam(scale(close) ~ te(nsites, turnover, k=13), data = meta2turn)
+gam.check(gam_close)
+
+#pdf(file="gamplot.pdf", width=7, height=4)
+grid.arrange(gamplot, gamzplot, ncol=2)
+#dev.off()
+
+gam.check(gam_close)
+gam.check(gam_close.z)
+
+summary(gam_close.z)$r.sq
 ```
 
 
@@ -1915,4 +1968,5 @@ plot(sf,
        col = "green",
        add = TRUE)
 ```
+
 
