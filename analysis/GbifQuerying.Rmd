@@ -14,6 +14,21 @@ library(dplyr)
 library(CoordinateCleaner)
 ```
 
+```{r}
+load("cleanData/metaCent.Rda")
+load(file="cleanData/localwebs.RDA")
+```
+
+```{r}
+fullquery <- c(unique(Birdweb$species1), unique(Birdweb$species2), unique(Insectweb$species1), unique(Insectweb$species2))
+
+taxa <- rgbif::name_backbone_checklist(fullquery)
+
+#Searched term is in verbatim_name column
+taxa_safe <- dplyr::filter(taxa, is.na(speciesKey)==F)
+write.csv(taxa_safe, file="backbone_matches.csv", row.names=FALSE)
+```
+
 
 ```{r}
 load(file="toQuery_centralRange.Rda")
