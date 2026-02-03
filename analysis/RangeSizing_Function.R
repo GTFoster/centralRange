@@ -14,8 +14,7 @@ library(maps)
 library(data.table)
 library(geodata)
 #library(rangeBuilder) #For creating alpha hulls #Edit: This is a good approach, but takes way too long. 
-library(alphahull)
-#Erase later-only for debugging
+#library(alphahull)
 library(tictoc)
 library(exactextractr)
 library(geosphere)

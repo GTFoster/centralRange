@@ -22,7 +22,7 @@ load(file="toQuery_centralRange.Rda")
 
 Set up the function to query GBIF occurance points and filter some obviously problematic ones.
 ```{r}
-#curl::handle_setopt(new_handle(),http_version = 2)
+curl::handle_setopt(new_handle(),http_version = 2)
 curlopts=list(http_version=2, maxrecs=10000)
 
 gbifQueryfilter <- function(name, maxrecs=10000){
@@ -41,7 +41,7 @@ gbifQueryfilter <- function(name, maxrecs=10000){
     if(nrecs < maxrecs){ #Ideal download path, taken if nrecs is below the maximum
   gbif_download <- occ_download(pred("taxonKey", keynum),format = "SIMPLE_CSV", user="riverman12", pwd="1Chicken!!!", email="fostergt@email.sc.edu")
   
-  #curl::handle_setopt(new_handle(),http_version = 2)
+  curl::handle_setopt(new_handle(),http_version = 2)
   occ_download_wait(gbif_download)
   #curl::handle_setopt(new_handle(),http_version = 2)
   spdat <- occ_download_get(gbif_download, path="data/GBIF/") %>%
@@ -88,10 +88,13 @@ write.csv(occs, file=filname, row.names = FALSE)
 
 Apply it for each node species
 ```{r}
-for(i in 1:length(toQuery)){
+missingBirds <- bmetaCent$node[is.na(bmetaCent$envarea)==T]
+missingInsects <- imetaCent$node[is.na(imetaCent$envarea)==T]
+
+for(i in 1:length(missingInsects)){
   starttime <- Sys.time()
-  gbifQueryfilter(toQuery[i])
-  print(paste("Completed ", i, "out of ", length(toQuery)))
+  gbifQueryfilter(missingInsects[i])
+  print(paste("Completed ", i, "out of ", length(missingInsects)))
   print(Sys.time()-starttime)
 }
 ```

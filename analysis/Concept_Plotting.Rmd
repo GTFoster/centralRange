@@ -30,8 +30,11 @@ rownames(mat1null) <- c("4","5","2","3","6","7","1")
 g1 <- igraph::graph_from_incidence_matrix(mat1, directed=F) 
 g1null <- igraph::graph_from_incidence_matrix(mat1null, directed=F) 
 
-plot(g1, layout=layout_as_bipartite(g1))
-plot(g1null, layout=layout_as_bipartite(g1))
+lay1 <- layout_as_bipartite(g1)
+plot(g1, layout=lay1)
+g1 <- g1 + edge("6","E")
+plot(g1, layout=lay1)
+plot(g1null, layout=lay1)
 ```
 
 ```{r}
@@ -177,19 +180,145 @@ g1null <- prettygraph(g1null)
 g2null <- prettygraph(g2null)
 g3null <- prettygraph(g3null)
 
-plot(g1, layout=layout_as_bipartite(g1), edge.width = 5, vertex.size=28)
-plot(g1null, layout=layout_as_bipartite(g1), edge.width = 5, vertex.size=28)
+pdf(file="figs/concept/g1.pdf")
+plot(g1, layout=lay1, edge.width = 5, vertex.size=28)
+dev.off()
+pdf(file="figs/concept/g1null.pdf")
+plot(g1null, layout=lay1, edge.width = 5, vertex.size=28)
+dev.off()
+pdf(file="figs/concept/g2.pdf")
 plot(g2, layout=layout_as_bipartite(g2), edge.width = 5, vertex.size=28)
+dev.off()
+pdf(file="figs/concept/g2null.pdf")
 plot(g2null, layout=layout_as_bipartite(g2), edge.width = 5, vertex.size=28)
+dev.off()
+pdf(file="figs/concept/g3.pdf")
 plot(g3, layout=layout_as_bipartite(g3), edge.width = 5, vertex.size=28)
+dev.off()
+pdf(file="figs/concept/g3null.pdf")
 plot(g3null, layout=layout_as_bipartite(g3), edge.width = 5, vertex.size=28)
+dev.off()
 ```
 
 ```{r}
 metapret <- prettygraph(metaweb)
 metaNullpret <- prettygraph(metaNull)
 
-plot(metapret, layout=layout_as_bipartite(metapret), edge.width = 3, vertex.size=15)
-plot(metaNullpret, layout=layout_as_bipartite(metapret), edge.width = 3, vertex.size=15)
+metalay <- layout_as_bipartite(metapret)
+
+metalay[8,1] <- 2
+metalay[9,1] <- 0
+
+metalay[3,1] <- 2
+metalay[7,1] <- 0
+
+pdf(file="figs/concept/meta.pdf")
+plot(metapret, layout=metalay, edge.width = 2, vertex.size=15)
+dev.off()
+pdf(file="figs/concept/metaNull.pdf")
+plot(metaNullpret, layout=metalay, edge.width = 2, vertex.size=15)
+dev.off()
+
+pdf(file="figs/concept/scale.pdf")
+ggplot(data=data.frame(val=igraph::centralization.closeness(metaNullpret)$res), aes(x=val, y=val, fill=val))+
+  geom_point()+
+  scale_fill_continuous(low="gold", high="red")
+dev.off()
+```
+
+
+```{r}
+# compute centrality and color function (you already do this inside prettygraph)
+cent <- igraph::centralization.closeness(metapret)$res
+cent_range <- range(cent, na.rm = TRUE)
+
+col_fun <- col_numeric(
+  palette = c("gold", "red"),
+  domain  = cent_range
+)
+
+# make a vertical colorbar and save
+ncolbar <- 200
+z <- matrix(seq(cent_range[1], cent_range[2], length.out = ncolbar), nrow = 1)
+
+#pdf("figs/concept/meta_colorbar.pdf", width = 2.2, height = 4)
+par(mar = c(4, 3, 1, 1))       # bottom, left, top, right margins
+# image expects x,y ordering; we want vertical strip so x=1 and y range runs along centrality
+
+# axis ticks and label
+axis(2, las = 1,      # vertical labels
+     at = pretty(cent_range),
+     labels = signif(pretty(cent_range), 3))
+
+mtext("Closeness\ncentrality", side = 2, line = 2.5)
+box()
+#dev.off()
+```
+
+
+
+Creating some density plots for our concept insets
+```{r}
+# Load required library
+library(ggplot2)
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Parameters for the normal distribution
+n <- 10000      # number of samples
+mu <- 0         # mean
+sigma <- 1      # standard deviation
+
+# Simulate data
+samples <- rnorm(n, mean = mu, sd = sigma)
+
+# Put data into a data frame
+df <- data.frame(x = samples)
+
+# Plot density
+pdf(file="figs/concept/normaldensity1.pdf")
+ggplot(df, aes(x = x)) +
+  geom_density(fill = "steelblue", alpha = 0.6) +
+  labs(
+    title = "Density of Sampled Normal Distribution",
+    x = "Value",
+    y = "Density"
+  ) +
+  theme_classic()
+dev.off()
+```
+
+```{r}
+# Load libraries
+library(ggplot2)
+library(sn)
+
+# Set seed
+set.seed(123)
+
+# Parameters
+n <- 10000
+xi <- 0        # location (similar to mean)
+omega <- 1     # scale (similar to sd)
+alpha <- 2     # skewness (0 = normal, positive = right-skew)
+
+# Simulate skewed normal data
+samples <- rsn(n, xi = xi, omega = omega, alpha = alpha)
+
+# Data frame
+df <- data.frame(x = samples)
+
+# Plot density
+pdf(file="figs/concept/sknormaldensity1.pdf")
+ggplot(df, aes(x = x)) +
+  geom_density(fill = "firebrick", alpha = 0.6) +
+  labs(
+    title = "Density of a Slightly Skewed Normal Distribution",
+    x = "Value",
+    y = "Density"
+  ) +
+  theme_classic()
+dev.off
 ```
 

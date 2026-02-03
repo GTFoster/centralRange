@@ -56,7 +56,7 @@ WolMeta <- WolMeta %>%
 
 Let's do some double checking to 
 1) Separate vertebrate from invertebrate pollination networks
-%2) Make different sources are correctly harmonized #Turns out these are the new deal
+2) Make different sources are correctly harmonized
 
 I was first going check every taxa with taxize, but turns out this actually takes a long time to run with so many taxa. Instead, I looked at the original papers for the 74 publications included in these data. Slow, but still faster than taxize. I load in the key I created for that below. 
 
@@ -514,7 +514,6 @@ rm(cl)
 
 # Combine all results
 localbCent <- do.call(rbind, localbCent_list)
-
 ```
 
 Now that we've got the z-transformed versions of our local centrality, we can add back in our range data. 
