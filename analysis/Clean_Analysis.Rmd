@@ -539,14 +539,17 @@ load(file="cleanData/localCentrality.Rda")
 RANGESIZING ASIDE: CLEAN THIS UP
 ```{r}
 matches <- read.csv(file="backbone_matches.csv")
-georng <- read.csv(file="data/geosummaryout.csv") 
-envrng <- read.csv(file="data/envsummaryout.csv")
-
+georng_old <- read.csv(file="data/geosummaryout.csv") 
+georng <- read.csv(file="data/geosummaryout_F26.csv") 
+envrng_old <- read.csv(file="data/envsummaryout.csv")
+envrng <- read.csv(file="data/envsummaryoutF_26.csv")
 ```
 
 ```{r}
-envrng
-georng
+table(is.na(georng$contgeokm.area))
+length(unique(georng$file))
+
+length(unique(envrng$file))
 ```
 
 
