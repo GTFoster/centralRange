@@ -161,6 +161,7 @@ bmetaCent <- data.frame(between=igraph::centralization.betweenness(bmeta)$res,
 
 Contending with Range size: 
 
+
 ```{r, eval=FALSE}
 georng <- read.csv(file="data/geosummaryout.csv") 
 envrng <- read.csv(file="data/envsummaryout.csv")
@@ -535,6 +536,20 @@ load(file="cleanData/localCentrality.Rda")
 ```
 
 
+RANGESIZING ASIDE: CLEAN THIS UP
+```{r}
+matches <- read.csv(file="backbone_matches.csv")
+georng <- read.csv(file="data/geosummaryout.csv") 
+envrng <- read.csv(file="data/envsummaryout.csv")
+
+```
+
+```{r}
+envrng
+georng
+```
+
+
 ## Analysis
 ```{r}
 imetaCent$net <- "Insect"
@@ -712,7 +727,6 @@ car::vif(birdPlant.zLocal, type="predictor")
 
 Alternative: Do we get generally the same results using a Bayesian framework? 
 ```{r}
-
 bayesRunclose <- function(netype, nodetype){
   if(netype=="Insect"){
     bayesamp <- imetaCent %>% dplyr::filter(., type==nodetype) %>% #Grab network
