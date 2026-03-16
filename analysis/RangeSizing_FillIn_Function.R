@@ -59,15 +59,21 @@ wadminrast <- terra::rasterize(wadmin, Clima, field="GID_0") #rasterize so it's 
 load(file="data/climate/env.RData") #load in our climate PCA
 
 
-#### Seperate by Continent
-
 flnames <- list.files("data/GBIF/occs")
 matches <- read.csv(file="backbone_matches.csv")
 envsummaryout <- NULL
 geosummaryout <- NULL
 queryprob <- NULL
 
+envexist <- read.csv(file="data/envsummaryout.csv")
+geoexist <- read.csv(file="data/geosummaryout.csv")
+
+
+
 for(i in 1:length(flnames)){
+  if(flnames[i] %in% c(envexist$file, geoexist$file)){
+    next #skip this species if we already have estimates for it
+  }
   print(paste("Attempting", i, "of ~7k", sep=" ")) 
   tempdat <- read.csv(file=paste("data/GBIF/occs/",flnames[i], sep=""))
   if(nrow(tempdat)<1){
@@ -85,8 +91,8 @@ next
   indcells <- ccs %>% dplyr::select(., ISO3, continent) %>% left_join(indcells, ., by=c("ISO3")) #Grab continent
   
   nameinfo <- dplyr::filter(matches, speciesKey==as.numeric(names(sort(-table(tempdat$taxonkey)))[1])) #looks hacky, but just grabing most common element
-  nameinfo <- dplyr::filter(nameinfo, status=="ACCEPTED") #remove synonymns if needed
   if(nrow(nameinfo)>1){ #If multiple accepted names, choose the exact match
+    nameinfo <- dplyr::filter(nameinfo, status=="ACCEPTED") #remove synonymns if needed
     nameinfo <- dplyr::filter(nameinfo, matchType=="EXACT")
     if("Bombus terrestris/lucorum" %in% nameinfo$verbatim_name){ #Deal with one problematic split
       nameinfo <- dplyr::filter(nameinfo, verbatim_name=="Bombus terrestris")
@@ -142,14 +148,12 @@ next
   envsummary <- cbind(envsummary, nameinfo) #add in our naming
   
   envsummaryout <- rbind(envsummaryout, envsummary) #add to our existing stack
-  write.csv(envsummaryout, file="data/envsummaryout.csv")
+  write.csv(envsummaryout, file="data/envsummaryout_fill.csv")
   geosummaryout <- rbind(geosummaryout, geosummary)
-  write.csv(geosummaryout, file="data/geosummaryout.csv")
+  write.csv(geosummaryout, file="data/geosummaryout_fill.csv")
 }
 
-length(unique(geosummaryout$file))
 
-length(envsummaryout$file)
 #species with missing taxonkeys (probably occurences queried using old code)
 #save(queryprob, file="queryprobIDs.RDA")
 
