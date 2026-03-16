@@ -315,7 +315,6 @@ save(imetaCent_null, file = "cleanData/ImetawebSwaps_raw2k_newrun.Rda")
 
 # Stop the cluster
 stopCluster(cl)
-
 ```
 
 
@@ -517,6 +516,8 @@ rm(cl)
 localbCent <- do.call(rbind, localbCent_list)
 ```
 
+
+
 Now that we've got the z-transformed versions of our local centrality, we can add back in our range data. 
 ```{r, eval=FALSE}
 localbCent <- bmetaCent %>% 
@@ -539,17 +540,52 @@ load(file="cleanData/localCentrality.Rda")
 RANGESIZING ASIDE: CLEAN THIS UP
 ```{r}
 matches <- read.csv(file="backbone_matches.csv")
+<<<<<<< HEAD
 georng_old <- read.csv(file="data/geosummaryout.csv") 
-georng <- read.csv(file="data/geosummaryout_F26.csv") 
+georng <- read.csv(file="data/geosummaryout_M10.csv") %>% dplyr::rename(., node=verbatim_name) #joining column
+geofill <- read.csv(file="data/geosummaryout_fill.csv") %>% dplyr::rename(., node=verbatim_name) #joining column
+
 envrng_old <- read.csv(file="data/envsummaryout.csv")
-envrng <- read.csv(file="data/envsummaryoutF_26.csv")
+envrng <- read.csv(file="data/envsummaryout_M10.csv") %>% dplyr::rename(., node=verbatim_name) #joining column
+envfill <- read.csv(file="data/envsummaryout_fill.csv")%>% dplyr::rename(., node=verbatim_name) #joining column
+
+envrng <- rbind(envrng, envfill)
+georng <- rbind(georng, geofill)
+
+imetaCent <- dplyr::select(imetaCent, -globkm, -envarea)
+bmetaCent <- dplyr::select(bmetaCent, -globkm, -envarea)
+
+localbCent <- dplyr::select(localbCent, -globkm, -envarea)
+localiCent <- dplyr::select(localiCent, -globkm, -envarea)
+=======
+georng <- read.csv(file="data/geosummaryout.csv") 
+envrng <- read.csv(file="data/envsummaryout.csv")
+
+>>>>>>> parent of da57cd6 (checkin before changing range sizing info)
 ```
 
+Joining based on the new range sizes
 ```{r}
-table(is.na(georng$contgeokm.area))
-length(unique(georng$file))
+<<<<<<< HEAD
+imetaCent <- left_join(imetaCent, envrng, by="node") #join environmental ranges 
+bmetaCent <- left_join(bmetaCent, envrng, by="node") 
+localiCent <- left_join(localiCent, envrng, by="node") #many joins; that's ok (duplicates of species across range)
+localbCent <- left_join(localbCent, envrng, by="node") 
 
-length(unique(envrng$file))
+globgeo <- georng %>% 
+  dplyr::group_by(., node) %>% 
+  dplyr::summarise(., globkm=sum(contgeokm.area)) #Combine individual continent ranges into single range size value
+
+imetaCent <- left_join(imetaCent, globgeo, by="node") #join environmental ranges 
+bmetaCent <- left_join(bmetaCent, globgeo, by="node") 
+localiCent <- left_join(localiCent, globgeo, by="node") #many joins; that's ok (duplicates of species across range)
+localbCent <- left_join(localbCent, globgeo, by="node") 
+
+rm(globgeo) #remove temporary object
+=======
+envrng
+georng
+>>>>>>> parent of da57cd6 (checkin before changing range sizing info)
 ```
 
 
@@ -561,6 +597,12 @@ bmetaCent$net <- "Bird"
 compositeMeta <- rbind(imetaCent, bmetaCent) %>% dplyr::filter(., is.na(envarea)==F)
 compositeMeta$type[compositeMeta$type %in% c("Insect", "Bird")] <- "Floral Visitor"
 ```
+
+```{r}
+missingI <- dplyr::filter(imetaCent, is.na(envarea)==T)
+missingB <- dplyr::filter(bmetaCent, is.na(envarea)==T)
+```
+
 
 
 Linear models for the effect of range size on centrality of each of our network X nodetype combinations
@@ -840,7 +882,7 @@ metaCentbayes$names <- c("Bird-Bird"="Avian Floral Visitor", "Plant-Bird"="Avian
 metaCentbayes <- dplyr::rename(metaCentbayes, param=name)
 
 
-#pdf(file="figs/leftbayesplot_main.pdf", width=9, height=11)
+pdf(file="figs/leftbayesplot_main_v2.pdf", width=9, height=11)
 metaCentbayes %>% dplyr::filter(., param!="intercept") %>%
 ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
     stat_density_ridges(scale = 1.5,
@@ -861,9 +903,9 @@ ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
   guides(fill="none")+
   ylab("")+
   xlab("Coefficient value")+
-  theme(axis.text.y=element_text(size=12), strip.text.x = element_text(size = 16))+ 
-  xlim(-0.01, 0.02)
-#dev.off()
+  theme(axis.text.y=element_blank(), axis.title.x = element_blank(),axis.text.x=element_text(size=28), strip.text.x = element_text(size = 24))+
+  xlim(-0.015, 0.02)
+  dev.off()
 
 
 bayeClosesum <- metaCentbayes %>% 
@@ -871,7 +913,9 @@ bayeClosesum <- metaCentbayes %>%
   dplyr::summarise(., leftail=sum(value<0)/nrow(temp), rightail=sum(value>0)/nrow(temp))%>%
   dplyr::mutate(pMCMC = 2*pmin(leftail, rightail)) #grab min tail and double, also drop groupings in case
 
-bayeClosesum %>% dplyr::filter(., param !="intercept")
+bayeClosesum %>% dplyr::filter(., param !="intercept") #Results for raw metaweb
+
+bayeClosesum %>% dplyr::filter(., param !="intercept") %>% dplyr::filter(., pMCMC<0.05) #Results for raw metaweb
 ```
 
 Repeat for z-standardized version
@@ -952,13 +996,11 @@ metaCentbayes.z$combo <- paste(metaCentbayes.z$type, metaCentbayes.z$net, sep="-
 metaCentbayes.z$names <- c("Bird-Bird"="Avian Floral Visitor", "Plant-Bird"="Avian-Visited Plant", "Plant-Insect"="Insect-Visited Plant", "Insect-Insect"="Insect Floral Visitor")[metaCentbayes.z$combo]
 
 metaCentbayes.z <- dplyr::rename(metaCentbayes.z, param=name)
-
 ```
 
 
 ```{r}
-
-#pdf(file="figs/rightbayesplot_main.pdf", width=9, height=11)
+pdf(file="figs/rightbayesplot_main_v2.pdf", width=9, height=11)
 metaCentbayes.z %>% dplyr::filter(., param!="intercept") %>%
 ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
     stat_density_ridges(scale = 1,
@@ -979,9 +1021,9 @@ ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
   guides(fill="none")+
   ylab("")+
   xlab("Coefficient value")+
-  theme(axis.text.y=element_text(size=12), strip.text.x = element_text(size = 16))+ 
-  xlim(-0.3, 0.5)
-#dev.off()
+  theme(axis.text.y=element_blank(), axis.title.x = element_blank(),axis.text.x=element_text(size=28), strip.text.x = element_text(size = 24))+ 
+  xlim(-0.4, 0.45)
+dev.off()
 
 
 
@@ -990,7 +1032,7 @@ bayeZsum <- metaCentbayes.z %>%
   dplyr::summarise(., leftail=sum(value<0)/nrow(temp), rightail=sum(value>0)/nrow(temp))%>%
   dplyr::mutate(pMCMC = 2*pmin(leftail, rightail)) #grab min tail and double, also drop groupings in case
 
-bayeZsum %>% dplyr::filter(., param != "intercept")
+bayeZsum %>% dplyr::filter(., param != "intercept") %>% dplyr::filter(., pMCMC<0.05) #Results for z-standardized metaweb
 ```
 
 
@@ -1032,7 +1074,7 @@ envRngLocal <- compositeLocal %>%
 geoRngLocal.z <- compositeLocal %>% 
   ggplot(., aes(x=scale(log(globkm)), y=z.close, col=as.factor(id)))+
   geom_point(alpha=0.7)+
-  #geom_smooth(method="lm", data=dplyr::filter(compositeLocal, type=="Plant" & net=="Bird"))+ #no sig relationships
+  geom_smooth(method="lm", data=dplyr::filter(compositeLocal, type=="Plant" & net=="Insect"))+
   facet_wrap(~net, labeller = labeller(net = net.labs))+
   theme_classic()+
   xlab("Scaled Log Geographic Area")+
@@ -1056,9 +1098,9 @@ envRngLocal.z <- compositeLocal %>%
 grid.arrange(geoRngLocal, geoRngLocal.z, envRngLocal, envRngLocal.z, nrow=2)
 #dev.off()
 
-pdf(file="cleanFigs/LocalCentralityPlot_Small.pdf", width=4, height=6.5)
+#pdf(file="cleanFigs/LocalCentralityPlot_Small_v2.pdf", width=4, height=6.5)
 grid.arrange(envRngLocal.z, geoRngLocal.z, nrow=2)
-dev.off()
+#dev.off()
 ```
 
 #Summary information
@@ -1078,6 +1120,11 @@ bmetaCent <- localbCent %>%
   dplyr::left_join(bmetaCent, ., by="node")
 
 cor.test(bmetaCent$close, bmetaCent$meanLocalclose)
+imetaCent
+
+fullCent <- rbind(imetaCent, bmetaCent) %>% dplyr::select(node, type, globkm) %>% unique() #Counting data avialability
+fullCent <- dplyr::filter(fullCent, is.na(globkm)==F)
+table(fullCent$type)
 ```
 
 Now performing Bayesian version the local web plotting. 
@@ -1146,13 +1193,12 @@ cor.test(ret$b_scalelogglobkm, ret$b_scalelogenvarea)
 Plotting local pairsplots
 ```{r}
 
-dimnames(Avian_visitor.brms.local)
 p1 <- bayesplot::mcmc_pairs(as.matrix(Avian_visitor.brms.local), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"), off_diag_fun="hex")
 
 p2 <- bayesplot::mcmc_pairs(as.matrix(Insect_visitor.brms.local), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"), off_diag_fun="hex")
 
 
-pdf(file="Pairplot_Visitors_Local.pdf", width=8, height=10)
+#pdf(file="Pairplot_Visitors_Local.pdf", width=8, height=10)
 grid.arrange(
   arrangeGrob(p1, top = "Avian Visitors (Local)"),
   arrangeGrob(p2, top = "Insect Visitors (Local)"),
@@ -1165,7 +1211,7 @@ p3 <- bayesplot::mcmc_pairs(as.matrix(Avian_plant.brms.local), pars=c("b_Interce
 p4 <- bayesplot::mcmc_pairs(as.matrix(Insect_plant.brms.local), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"), off_diag_fun="hex")
 
 
-pdf(file="Pairplot_Plants_Local.pdf", width=8, height=10)
+#pdf(file="Pairplot_Plants_Local.pdf", width=8, height=10)
 grid.arrange(
   arrangeGrob(p3, top = "Avian-Visited Plants (Local)"),
   arrangeGrob(p4, top = "Insect-Visited Plants (Local)"),
@@ -1200,8 +1246,6 @@ grid.arrange(
   ncol = 1
 )
 dev.off()
-
-
 ```
 
 ```{r}
@@ -1264,7 +1308,7 @@ localCentbayes$combo <- paste(localCentbayes$type, localCentbayes$net, sep="-")
 
 localCentbayes$names <- c("Bird-Bird"="Avian Floral Visitor", "Plant-Bird"="Avian-Visited Plant", "Plant-Insect"="Insect-Visited Plant", "Insect-Insect"="Insect Floral Visitor")[localCentbayes$combo]
 
-localCentbayes <- dplyr::rename(localCentbayes, param=name)
+localCentbayes <- dplyr::rename(localCentbayes, param=name) #Local version of bayesian plotting
 ```
 
 
@@ -1272,7 +1316,7 @@ localCentbayes <- dplyr::rename(localCentbayes, param=name)
 And creating plots
 
 ```{r}
-pdf(file="figs/local_bayesplot.pdf", width=7, height=11)
+#pdf(file="figs/local_bayesplot_full.pdf", width=7, height=11)
 localCentbayes %>% dplyr::filter(., param!="intercept") %>%
 ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
     stat_density_ridges(scale = 1,
@@ -1294,8 +1338,7 @@ ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
   ylab("")+
   xlab("Coefficient value")+
   theme(axis.text.y=element_text(size=12), strip.text.x = element_text(size = 16))
-dev.off()
-
+#dev.off()
 
 ```
 
@@ -1307,7 +1350,7 @@ bayeLocsum <- localCentbayes %>%
   dplyr::mutate(pMCMC = 2*pmin(leftail, rightail)) #grab min tail and double, also drop groupings in case
 
 
-bayeLocsum %>% dplyr::filter(., param!="intercept")
+bayeLocsum %>% dplyr::filter(., param!="intercept") %>% dplyr::filter(., pMCMC<.05)
 ```
 
 
@@ -1757,7 +1800,7 @@ supp.labs <- c("Bird-Pollinated Plants", "Bird Floral Visitors", "Insect-Pollina
 names(supp.labs) <- c("Bird-Plant", "Bird-Bird", "Insect-Plant", "Insect-Insect")
 
 
-pdf(file="Scratch_turnoverplot.pdf", width=8, height=8)
+#pdf(file="Scratch_turnoverplot.pdf", width=8, height=8)
 meta2 %>% 
   dplyr::filter(., nsites>2 & is.na(globkm)==F) %>%
   ggplot(., aes(x = turnover, 
@@ -1775,7 +1818,7 @@ meta2 %>%
   theme_classic()+
   facet_wrap(~combo, labeller = as_labeller(supp.labs))+
   ylab(expression("Scaled Metaweb Centrality - Scaled Mean Local Centrality")) #IDK why it keeps cutting this off, but using expression to force prevent that from happening
-dev.off()
+#dev.off()
 ```
 
 
@@ -1944,45 +1987,6 @@ ggplot() +
   ylab("Latitude")+
   labs(color = "Network Type")
 #dev.off()
-```
-
-
-
-```{r}
-
-```
-
-
-
-#New aside:
-Comparing to BIEN. It still seems like these only include new world species. Maybe I can check the new stuff?
-```{r, eval=FALSE}
-library(BIEN)
-
-bmetaCent$node[bmetaCent$type=="Plant"][1:10]
-BIEN_ranges_species_bulk(species=bmetaCent$node[bmetaCent$type=="Plant"], directory="data/bien/")
-BIEN_ranges_species_bulk(species="Castanea crenata", directory="data/bien/")
-
-
-sf <- st_read(dsn = "data/bien/1/", layer = "Castanea_crenata")
-
-plot(sf)
-
-
-library(BIEN)
-library(ape) #Package for working with phylogenies in R
-library(maps) #Useful for making quick maps of occurrences
-library(sf) # A package for spatial data  
-map('world', fill = TRUE ,
-      col= "grey",
-      bg = "light blue",
-      xlim = c(-125, -70),
-      ylim = c(30, 48))
-
-#Now, we can add the range map:
-plot(sf,
-       col = "green",
-       add = TRUE)
 ```
 
 
