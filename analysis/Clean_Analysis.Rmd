@@ -540,7 +540,7 @@ load(file="cleanData/localCentrality.Rda")
 RANGESIZING ASIDE: CLEAN THIS UP
 ```{r}
 matches <- read.csv(file="backbone_matches.csv")
-<<<<<<< HEAD
+
 georng_old <- read.csv(file="data/geosummaryout.csv") 
 georng <- read.csv(file="data/geosummaryout_M10.csv") %>% dplyr::rename(., node=verbatim_name) #joining column
 geofill <- read.csv(file="data/geosummaryout_fill.csv") %>% dplyr::rename(., node=verbatim_name) #joining column
@@ -557,16 +557,10 @@ bmetaCent <- dplyr::select(bmetaCent, -globkm, -envarea)
 
 localbCent <- dplyr::select(localbCent, -globkm, -envarea)
 localiCent <- dplyr::select(localiCent, -globkm, -envarea)
-=======
-georng <- read.csv(file="data/geosummaryout.csv") 
-envrng <- read.csv(file="data/envsummaryout.csv")
-
->>>>>>> parent of da57cd6 (checkin before changing range sizing info)
 ```
 
 Joining based on the new range sizes
 ```{r}
-<<<<<<< HEAD
 imetaCent <- left_join(imetaCent, envrng, by="node") #join environmental ranges 
 bmetaCent <- left_join(bmetaCent, envrng, by="node") 
 localiCent <- left_join(localiCent, envrng, by="node") #many joins; that's ok (duplicates of species across range)
@@ -582,10 +576,6 @@ localiCent <- left_join(localiCent, globgeo, by="node") #many joins; that's ok (
 localbCent <- left_join(localbCent, globgeo, by="node") 
 
 rm(globgeo) #remove temporary object
-=======
-envrng
-georng
->>>>>>> parent of da57cd6 (checkin before changing range sizing info)
 ```
 
 
@@ -598,8 +588,9 @@ compositeMeta <- rbind(imetaCent, bmetaCent) %>% dplyr::filter(., is.na(envarea)
 compositeMeta$type[compositeMeta$type %in% c("Insect", "Bird")] <- "Floral Visitor"
 ```
 
+#Setting aside our species we don't have enough occurence points for to make a range
 ```{r}
-missingI <- dplyr::filter(imetaCent, is.na(envarea)==T)
+missingI <- dplyr::filter(imetaCent, is.na(envarea)==T) 
 missingB <- dplyr::filter(bmetaCent, is.na(envarea)==T)
 ```
 
@@ -700,7 +691,7 @@ envRngMeta.z <- compositeMeta %>%
   scale_color_manual(values = clrs)+
        theme(strip.text.x = element_text(size = 14))
 
-#pdf(file="cleanFigs/MetawebCentralityPlot.pdf", width=10, height=8)
+#pdf(file="cleanFigs/supplement/MetawebCentralityPlot.pdf", width=10, height=8)
 grid.arrange(envRngMeta, envRngMeta.z, geoRngMeta, geoRngMeta.z, nrow=2)
 #dev.off()
 ```
@@ -850,6 +841,7 @@ Insect_visitor.brms$fit
 
 Below, we use as_draws_df to extract posterior samples from the brms models we trained above. 
 ```{r}
+set.seed(1)
 samps <- as_draws_df(Insect_visitor.brms) %>% 
   dplyr::select(., b_Intercept, b_scalelogglobkm, b_scalelogenvarea, "b_scalelogglobkm:scalelogenvarea") %>%
   dplyr::mutate(type="Insect", net="Insect")
@@ -905,8 +897,7 @@ ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
   xlab("Coefficient value")+
   theme(axis.text.y=element_blank(), axis.title.x = element_blank(),axis.text.x=element_text(size=28), strip.text.x = element_text(size = 24))+
   xlim(-0.015, 0.02)
-  dev.off()
-
+dev.off()
 
 bayeClosesum <- metaCentbayes %>% 
   dplyr::group_by(., combo, param) %>% 
@@ -966,6 +957,7 @@ Avian_visitor.brms.z <- bmetaCent %>%
                   warmup = 1000, # burnin
                   thin = 1) # no thinning
 
+set.seed(1)
 samps <- as_draws_df(Insect_visitor.brms.z) %>% 
   dplyr::select(., b_Intercept, b_scalelogglobkm, b_scalelogenvarea, "b_scalelogglobkm:scalelogenvarea") %>%
   dplyr::mutate(type="Insect", net="Insect")
@@ -1082,11 +1074,11 @@ geoRngLocal.z <- compositeLocal %>%
   scale_color_manual(values = clrs)+
        theme(strip.text.x = element_text(size = 11), axis.title = element_text(size = 9))
 
-#Sig in env.z: Insect Pollinated Plants
+#Sig in env.z: Insect Pollinated Plants & Insect pollinators
 envRngLocal.z <- compositeLocal %>% 
   ggplot(., aes(x=scale(log(envarea)), y=z.close, col=as.factor(id)))+
   geom_point(alpha=0.7)+
-  geom_smooth(method="lm", data=dplyr::filter(compositeLocal, type=="Plant" & net=="Insect"))+
+  geom_smooth(method="lm", data=dplyr::filter(compositeLocal, net=="Insect"))+
   facet_wrap(~net, labeller = labeller(net = net.labs))+
   theme_classic()+
   xlab("Scaled Log Environmental Area")+
@@ -1098,9 +1090,9 @@ envRngLocal.z <- compositeLocal %>%
 grid.arrange(geoRngLocal, geoRngLocal.z, envRngLocal, envRngLocal.z, nrow=2)
 #dev.off()
 
-#pdf(file="cleanFigs/LocalCentralityPlot_Small_v2.pdf", width=4, height=6.5)
+pdf(file="cleanFigs/LocalCentralityPlot_Small_v2.pdf", width=4, height=6.5)
 grid.arrange(envRngLocal.z, geoRngLocal.z, nrow=2)
-#dev.off()
+dev.off()
 ```
 
 #Summary information
@@ -1185,53 +1177,50 @@ cor.test(ret$b_scalelogglobkm, ret$b_scalelogenvarea)
 #bayesplot::mcmc_areas(as.matrix(Avian_visitor.brms.local),prob_outer = .99,pars = c("b_scalelogglobkm","b_scalelogenvarea","b_scalelogglobkm:scalelogenvarea","b_Intercept"))
 
 #(loog <- brms::loo(Avian_visitor.brms.local))
-
-
-
 ```
 
 Plotting local pairsplots
 ```{r}
+makePairs <- function(input.brms){
+  matemp <- as.matrix(input.brms) #change object type
+  colnames(matemp) <- c("b_Intercept", "Geographic", "Environment", "Interaction", "sigma", "Intercept","lprior","lp__") #make slope names readable
+  bayesplot::mcmc_pairs(matemp, , pars=c("b_Intercept", "Geographic", "Environment", "Interaction"), off_diag_fun="hex")
 
-p1 <- bayesplot::mcmc_pairs(as.matrix(Avian_visitor.brms.local), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"), off_diag_fun="hex")
+}
+```
 
-p2 <- bayesplot::mcmc_pairs(as.matrix(Insect_visitor.brms.local), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"), off_diag_fun="hex")
+
+```{r}
+p1 <- makePairs(Avian_visitor.brms.local)
+
+p2 <- makePairs(Insect_visitor.brms.local)
 
 
-#pdf(file="Pairplot_Visitors_Local.pdf", width=8, height=10)
+pdf(file="cleanFigs/supplement/Pairplot_Visitors_Local.pdf", width=8, height=10)
 grid.arrange(
   arrangeGrob(p1, top = "Avian Visitors (Local)"),
   arrangeGrob(p2, top = "Insect Visitors (Local)"),
   ncol = 1
 )
+dev.off()
 
+p3 <- makePairs(Avian_plant.brms.local)
 
-p3 <- bayesplot::mcmc_pairs(as.matrix(Avian_plant.brms.local), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"), off_diag_fun="hex")
+p4 <- makePairs(Insect_plant.brms.local)
 
-p4 <- bayesplot::mcmc_pairs(as.matrix(Insect_plant.brms.local), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"), off_diag_fun="hex")
-
-
-#pdf(file="Pairplot_Plants_Local.pdf", width=8, height=10)
+pdf(file="cleanFigs/supplement/Pairplot_Plants_Local.pdf", width=8, height=10)
 grid.arrange(
   arrangeGrob(p3, top = "Avian-Visited Plants (Local)"),
   arrangeGrob(p4, top = "Insect-Visited Plants (Local)"),
   ncol = 1
 )
-```
 
+p5 <- makePairs(Avian_visitor.brms)
+p6 <-  makePairs(Insect_visitor.brms)
+p7 <- makePairs(Avian_visitor.brms.z)
+p8 <-  makePairs(Insect_visitor.brms.z)
 
-
-```{r}
-p5 <- bayesplot::mcmc_pairs(as.matrix(Avian_visitor.brms), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"), off_diag_fun="hex")
-
-p6 <- bayesplot::mcmc_pairs(as.matrix(Insect_visitor.brms), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"), off_diag_fun="hex")
-
-p7 <- bayesplot::mcmc_pairs(as.matrix(Avian_visitor.brms.z), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"), off_diag_fun="hex")
-
-p8 <- bayesplot::mcmc_pairs(as.matrix(Insect_visitor.brms.z), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"), off_diag_fun="hex")
-
-
-pdf(file="Pairplot_Avian_Visitors_Metaweb.pdf", width=8, height=10)
+pdf(file="cleanFigs/supplement/Pairplot_Avian_Visitors_Metaweb.pdf", width=8, height=10)
 grid.arrange(
   arrangeGrob(p5, top = "Avian Visitors (Metaweb)"),
   arrangeGrob(p7, top = "Avian Visitiors (Metaweb Z-transformed)"),
@@ -1239,26 +1228,24 @@ grid.arrange(
 )
 dev.off()
 
-pdf(file="Pairplot_Insect_Visitors_Metaweb.pdf", width=8, height=10)
+pdf(file="cleanFigs/supplement/Pairplot_Insect_Visitors_Metaweb.pdf", width=8, height=10)
 grid.arrange(
   arrangeGrob(p6, top = "Insect Visitors (Metaweb)"),
   arrangeGrob(p8, top = "Insect Visitiors (Metaweb Z-transformed)"),
   ncol = 1
 )
 dev.off()
-```
 
-```{r}
-p9 <- bayesplot::mcmc_pairs(as.matrix(Avian_plant.brms), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"), off_diag_fun="hex")
+p9 <- makePairs(Avian_plant.brms)
 
-p10 <- bayesplot::mcmc_pairs(as.matrix(Avian_plant.brms.z), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"), off_diag_fun="hex")
+p10 <- makePairs(Avian_plant.brms.z)
 
-p11 <- bayesplot::mcmc_pairs(as.matrix(Insect_plant.brms), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"), off_diag_fun="hex")
+p11 <- makePairs(Insect_plant.brms)
 
-p12 <- bayesplot::mcmc_pairs(as.matrix(Insect_plant.brms.z), pars=c("b_Intercept", "b_scalelogglobkm", "b_scalelogenvarea", "b_scalelogglobkm:scalelogenvarea"), off_diag_fun="hex")
+p12 <- makePairs(Insect_plant.brms.z)
 
 
-pdf(file="Pairplot_Avian_Plants_Metaweb.pdf", width=8, height=10)
+pdf(file="cleanFigs/supplement/Pairplot_Avian_Plants_Metaweb.pdf", width=8, height=10)
 grid.arrange(
   arrangeGrob(p9, top = "Avian-Visited Plants (Metaweb)"),
   arrangeGrob(p10, top = "Avian-Visited Plants (Metaweb Z-transformed)"),
@@ -1266,7 +1253,7 @@ grid.arrange(
 )
 dev.off()
 
-pdf(file="Pairplot_Insect_Plants_Metaweb.pdf", width=8, height=10)
+pdf(file="cleanFigs/supplement/Pairplot_Insect_Plants_Metaweb.pdf", width=8, height=10)
 grid.arrange(
   arrangeGrob(p11, top = "Insect-Visited Plants (Metaweb)"),
   arrangeGrob(p12, top = "Insect-Visited Plants (Metaweb Z-transformed)"),
@@ -1310,8 +1297,6 @@ localCentbayes$names <- c("Bird-Bird"="Avian Floral Visitor", "Plant-Bird"="Avia
 
 localCentbayes <- dplyr::rename(localCentbayes, param=name) #Local version of bayesian plotting
 ```
-
-
 
 And creating plots
 
@@ -1365,6 +1350,7 @@ nlinks/(length(unique(Birdweb$species1))*length(unique(Birdweb$species2))) #divi
 
 rm(nlinks) #housekeeping
 ```
+
 ## Supplement
 
 Connectance of local webs
@@ -1469,9 +1455,9 @@ ggplot(aes(x=factor(node, levels=unique(node[order(nsites, decreasing = T)])), y
   geom_hline(yintercept=1.96, linetype='dotted', col = 'red')+
   geom_hline(yintercept=-1.96, linetype='dotted', col = 'red')
 
-#pdf(file="cleanFigs/Local_Centrality_Distributions.pdf", width=10, height=8)
+pdf(file="cleanFigs/supplement/Local_Centrality_Distributions.pdf", width=10, height=8)
 grid.arrange(bRepPlot, bRepPlot.z, iRepPlot, iRepPlot.z, nrow=2)
-#dev.off()
+dev.off()
 ```
 
 
@@ -1604,7 +1590,7 @@ unique() %>%
   left_join(compositeMeta2,., by="node")
 
 
-#pdf(file="cleanFigs/Cooccurence_vs_GeographicRange.pdf", width=10, height=8)
+#pdf(file="cleanFigs/supplement/Cooccurence_vs_GeographicRange.pdf", width=10, height=8)
 compositeMeta2 %>% 
   ggplot(., aes(x=log(globkm), y=log(extra), col=net))+
   geom_point(alpha=0.7)+
