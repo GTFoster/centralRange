@@ -27,6 +27,7 @@ library(gridExtra)
 library(vegan)
 library(ggridges)
 library(brms)
+library(gratia)
 
 set.seed(1)
 ```
@@ -49,9 +50,7 @@ length(unique(WolPols$network_name)) # 174 Networks
 WolMeta <- read.csv(paste0(base_url,"get_network_info.php"))
 WolMeta <- WolMeta %>% dplyr::filter(., network_type%in%"Pollination") #Make sure we have only pollination
 WolMeta <- WolMeta %>% 
-  #dplyr::select(., network_name, region, latitude, longitude) %>% 
   left_join(WolPols, ., by="network_name")
-#WolMeta <- dplyr::select(WolMeta, -Taxa.y) %>% dplyr::rename(., Taxa=Taxa.x)
 ```
 
 Let's do some double checking to 
@@ -105,8 +104,6 @@ imeta <- igraph::graph_from_data_frame(InsectMeta, directed=F) #Create igraph ob
 
 BirdMeta <- dplyr::select(Birdweb, species1, species2) %>% unique()
 bmeta <- igraph::graph_from_data_frame(BirdMeta, directed=F) #Create igraph object
-
-
 
 #Creating the site index
 Birdweb <- Birdweb %>%
@@ -1455,9 +1452,9 @@ ggplot(aes(x=factor(node, levels=unique(node[order(nsites, decreasing = T)])), y
   geom_hline(yintercept=1.96, linetype='dotted', col = 'red')+
   geom_hline(yintercept=-1.96, linetype='dotted', col = 'red')
 
-pdf(file="cleanFigs/supplement/Local_Centrality_Distributions.pdf", width=10, height=8)
+#pdf(file="cleanFigs/supplement/Local_Centrality_Distributions.pdf", width=10, height=8)
 grid.arrange(bRepPlot, bRepPlot.z, iRepPlot, iRepPlot.z, nrow=2)
-dev.off()
+#dev.off()
 ```
 
 
@@ -1719,46 +1716,45 @@ imetaCent$close_scaled <- scale(imetaCent$close)
 bmetaCent$close_scaled <- scale(bmetaCent$close)
 
 
-dplyr::filter(imetaCent, nsites>1) %>%
-ggplot(data=., aes(x=turnover, y=rank(close_scaled)-rank(close.z))) + 
-  geom_point()+
-  geom_smooth(method="lm")
-
-dplyr::filter(imetaCent, nsites>1) %>%
-ggplot(data=., aes(x=turnover, y=log(globkm))) + 
-  geom_point()+
-  geom_smooth(method="lm")
-
-plot(x=rank(imetaCent$close.z), y=rank(imetaCent$close_scaled))
-cor.test(imetaCent$close.z, imetaCent$close_scaled, method="spearman")
-cor.test(imetaCent$close.z, imetaCent$close_scaled, method="pearson")
-
 p1 <- imetaCent %>% dplyr::filter(., is.na(turnover)==F & type=="Plant") %>%
 ggplot(., aes(x = close_scaled, y = close.z, color = turnover)) +
   geom_point() + geom_smooth(method="lm") +
   scale_color_viridis_c()+theme_classic()+
-  ggtitle("Insect-Pollinated Plants")
+  ggtitle("Insect-Pollinated Plants") + 
+  stat_cor(aes(label = ..rr.label..), label.x = 0, label.y = -4) +
+  xlab("Metaweb Closeness Centrality")+
+  ylab("Z-transformed Metaweb Centrality")
 
 p2 <- imetaCent %>% dplyr::filter(., is.na(turnover)==F & type=="Insect") %>%
 ggplot(., aes(x = close_scaled, y = close.z, color = turnover)) +
   geom_point() + geom_smooth(method="lm") +
   scale_color_viridis_c()+theme_classic()+
-  ggtitle("Insect Floral Visitors")
+  ggtitle("Insect Floral Visitors")+ 
+  stat_cor(aes(label = ..rr.label..), label.x = 0, label.y = -8) +
+  xlab("Metaweb Closeness Centrality")+
+  ylab("Z-transformed Metaweb Centrality")
 
 p3 <- bmetaCent %>% dplyr::filter(., is.na(turnover)==F & type=="Plant") %>%
 ggplot(., aes(x = close_scaled, y = close.z, color = turnover)) +
   geom_point() + geom_smooth(method="lm") +
   scale_color_viridis_c()+theme_classic()+
-  ggtitle("Bird-Pollinated Plants")
+  ggtitle("Bird-Pollinated Plants") + 
+  stat_cor(aes(label = ..rr.label..), label.x = 0, label.y = -4) +
+  xlab("Metaweb Closeness Centrality")+
+  ylab("Z-transformed Metaweb Centrality")
 
 p4 <- bmetaCent %>% dplyr::filter(., is.na(turnover)==F & type=="Bird") %>%
 ggplot(., aes(x = close_scaled, y = close.z, color = turnover)) +
   geom_point() + geom_smooth(method="lm") +
   scale_color_viridis_c()+theme_classic()+
-  ggtitle("Bird Floral Visitors")
+  ggtitle("Bird Floral Visitors") + 
+  stat_cor(aes(label = ..rr.label..), label.x = 0, label.y = -4) +
+  xlab("Metaweb Closeness Centrality")+
+  ylab("Z-transformed Metaweb Centrality")
 
 
-pdf(file="closenesscomparison.pdf")
+
+pdf(file="cleanFigs/supplement/closenesscomparison.pdf")
 grid.arrange(p1,p2,p3,p4, ncol=2)
 dev.off()
 
@@ -1851,7 +1847,6 @@ ggplot(meta2turn, aes(x=nsites, y=close, col=turnover))+
 
 
 ```{r}
-library(gratia)
 meta2turn <- meta2 %>% dplyr::filter(., is.na(turnover)==F & node!="Apis mellifera") #Only grab species that have turnover component (occur at multiple sites) 
 #gam_model <- mgcv::gam(formula=close~s(nsites, k = 2)+s(turnover), data=meta2turn) 
 
@@ -1866,11 +1861,6 @@ gratia::draw(gam_close, select = 1, contour = TRUE)+
 #dev.off()
 
 
-
-draw(gam_close, select = 1, contour = TRUE, n = c(200, 200), too.far = 6) +
-  theme_classic()
-
-library(gratia)
 
 
 # Define extended ranges
@@ -1895,8 +1885,6 @@ draw(smooth_df.z, contour = TRUE) +
   theme_classic() +
   xlab("Number of sites (log scale)") +
   ylab("Closeness Centrality in Global Metaweb")
-
-
 
 
 
@@ -1936,17 +1924,9 @@ gam.check(gam_close)
 #pdf(file="gamplot.pdf", width=7, height=4)
 grid.arrange(gamplot, gamzplot, ncol=2)
 #dev.off()
-
-gam.check(gam_close)
-gam.check(gam_close.z)
-
-summary(gam_close.z)$r.sq
 ```
 
 
-```{r}
-load("cleanData/metawebs.RDA")
-```
 
 Creating a really simple supplemental plot of sites. 
 ```{r}
