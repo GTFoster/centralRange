@@ -123,6 +123,7 @@ Insectweb <- Insectweb %>%
 A quick check-in point, loading in our metaweb data (both in igraph and df forms)
 ```{r}
 load("cleanData/metawebs.RDA")
+load("cleanData/localwebs.RDA")
 ```
 
 Computing Baseline Centrality Metrics on the Metawebs
@@ -155,38 +156,6 @@ bmetaCent <- data.frame(between=igraph::centralization.betweenness(bmeta)$res,
            node=V(bmeta)$name)
 ```
 
-
-Contending with Range size: 
-
-
-```{r, eval=FALSE}
-georng <- read.csv(file="data/geosummaryout.csv") 
-envrng <- read.csv(file="data/envsummaryout.csv")
-
-envrng$node <- envrng$file #file contains the queried node name
-envrng$node <- gsub("_", " ", envrng$node) #this and below some string manipulations for joins
-envrng$node <- gsub(".csv", "", envrng$node)
-envrng$node <- paste(toupper(substring(envrng$node, 1, 1)), substring(envrng$node, 2), sep="")
-
-imetaCent <- dplyr::select(envrng, envarea, node) %>% left_join(imetaCent, ., by="node") #Add in environmental ranges
-bmetaCent <- dplyr::select(envrng, envarea, node) %>% left_join(bmetaCent, ., by="node")
- 
-
-globgeo <- georng %>% 
-  dplyr::group_by(., file) %>% 
-  dplyr::summarise(., globkm=sum(contgeokm.area)) #Combine individual continent ranges into single range size value
-
-globgeo$node <- globgeo$file
-globgeo$node <- gsub("_", " ", globgeo$node)
-globgeo$node <- gsub(".csv", "", globgeo$node)
-globgeo$node <- paste(toupper(substring(globgeo$node, 1, 1)), substring(globgeo$node, 2), sep="") 
-globgeo <- dplyr::select(globgeo, -file)
-
-imetaCent <- left_join(imetaCent, globgeo, by="node") #add geo ranges
-bmetaCent <- left_join(bmetaCent, globgeo, by="node")
-
-rm(envrng, georng, globgeo) #Now that we've joined, removing for clutter
-```
 
 Adding a type argument for ease of use
 ```{r, eval=FALSE}
@@ -335,7 +304,7 @@ imetaCent$close.z <- (imetaCent$close-imetaCent$meancl)/imetaCent$sdcl
 
 rm(imetaCent_null, isums, bmetaCent_null, bsums) #remove intermediate objects to reduce clutter
 
-save(imetaCent, imeta, bmetaCent, bmeta, file="cleanData/metaCent.Rda") #Saving the output
+#save(imetaCent, imeta, bmetaCent, bmeta, file="cleanData/metaCent.Rda") #Saving the output
 ```
 
 Load in our objects from above.
@@ -427,8 +396,6 @@ stopCluster(cl)
 # Combine all results
 localiCent <- do.call(rbind, localiCent_list)
 
-
-
  ########NOW BIRDS
 # Get unique site indices
 site_indices <- unique(Birdweb$site_index)
@@ -513,8 +480,6 @@ rm(cl)
 localbCent <- do.call(rbind, localbCent_list)
 ```
 
-
-
 Now that we've got the z-transformed versions of our local centrality, we can add back in our range data. 
 ```{r, eval=FALSE}
 localbCent <- bmetaCent %>% 
@@ -524,7 +489,7 @@ localbCent <- bmetaCent %>%
 localiCent <- imetaCent %>% 
   dplyr::select(., node, envarea, globkm) %>% #add in ranges
   left_join(localiCent, by="node")
-save(localiCent, localbCent, file="cleanData/localCentrality.Rda")
+#save(localiCent, localbCent, file="cleanData/localCentrality.Rda")
 ```
 
 Now we can load in data back for our local networks
@@ -533,6 +498,14 @@ rm(InsectMeta, BirdMeta) #remove objects used for making these
 load(file="cleanData/localCentrality.Rda")
 ```
 
+
+START HERE WITH RANGE SIZES
+```{r}
+imetaCent <- dplyr::select(imetaCent, -globkm, -envarea)
+bmetaCent <- dplyr::select(bmetaCent, -globkm, -envarea)
+localiCent <- dplyr::select(localiCent, -globkm, -envarea)
+localbCent <- dplyr::select(localbCent, -globkm, -envarea)
+```
 
 RANGESIZING ASIDE: CLEAN THIS UP
 ```{r}
@@ -549,25 +522,33 @@ envfill <- read.csv(file="data/envsummaryout_fill.csv")%>% dplyr::rename(., node
 envrng <- rbind(envrng, envfill)
 georng <- rbind(georng, geofill)
 
-imetaCent <- dplyr::select(imetaCent, -globkm, -envarea)
-bmetaCent <- dplyr::select(bmetaCent, -globkm, -envarea)
+georng <- georng %>%
+  dplyr::group_by(node, continent) %>%
+  dplyr::summarise(geoArea = max(contgeokm.area, na.rm = TRUE)) #If there are node naming descrepencies, resolve them using the most # of occ points
 
-localbCent <- dplyr::select(localbCent, -globkm, -envarea)
-localiCent <- dplyr::select(localiCent, -globkm, -envarea)
+envrng <- envrng %>%
+  dplyr::group_by(node) %>%
+  dplyr::summarise(envarea = max(envarea, na.rm = TRUE)) #Same for environmental ranges
+
+#imetaCent <- dplyr::select(imetaCent, -globkm, -envarea)
+#bmetaCent <- dplyr::select(bmetaCent, -globkm, -envarea)
+
+#localbCent <- dplyr::select(localbCent, -globkm, -envarea)
+#localiCent <- dplyr::select(localiCent, -globkm, -envarea)
 ```
 
 Joining based on the new range sizes
 ```{r}
 imetaCent <- left_join(imetaCent, envrng, by="node") #join environmental ranges 
 bmetaCent <- left_join(bmetaCent, envrng, by="node") 
-localiCent <- left_join(localiCent, envrng, by="node") #many joins; that's ok (duplicates of species across range)
+localiCent <- left_join(localiCent, envrng, by="node") 
 localbCent <- left_join(localbCent, envrng, by="node") 
 
 globgeo <- georng %>% 
   dplyr::group_by(., node) %>% 
-  dplyr::summarise(., globkm=sum(contgeokm.area)) #Combine individual continent ranges into single range size value
+  dplyr::summarise(., globkm=sum(geoArea)) #Combine individual continent ranges into single range size value
 
-imetaCent <- left_join(imetaCent, globgeo, by="node") #join environmental ranges 
+imetaCent <- left_join(imetaCent, globgeo, by="node") #join geographic ranges 
 bmetaCent <- left_join(bmetaCent, globgeo, by="node") 
 localiCent <- left_join(localiCent, globgeo, by="node") #many joins; that's ok (duplicates of species across range)
 localbCent <- left_join(localbCent, globgeo, by="node") 
