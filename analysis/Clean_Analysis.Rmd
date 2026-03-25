@@ -57,7 +57,7 @@ Let's do some double checking to
 1) Separate vertebrate from invertebrate pollination networks
 2) Make different sources are correctly harmonized
 
-I was first going check every taxa with taxize, but turns out this actually takes a long time to run with so many taxa. Instead, I looked at the original papers for the 74 publications included in these data. Slow, but still faster than taxize. I load in the key I created for that below. 
+I was first going check every taxa with taxize, but turns out this actually takes a long time to run with so many taxa. Instead, I looked at the original papers for the 74 publications included in these data. Slow, but still faster than taxize. I load in the key I created for that below, and use that to mark which species are which node types. 
 
 ```{r, eval=FALSE}
 studykey <- read.csv(file="studykey.csv")
@@ -128,8 +128,8 @@ load("cleanData/localwebs.RDA")
 
 Computing Baseline Centrality Metrics on the Metawebs
 
-First need to drop disconnected components
-```{r, eval=FALSE}
+First we need to drop the disconnected components
+```{r}
 V(imeta)$component <- components(imeta)$membership
 #components(imeta)$csize #Largest component has 6237 nodes; the rest are isolated pairs
 imeta <- delete.vertices(imeta, V(imeta)$component!=which.max(components(imeta)$csize)) #Remove vertices that aren't included in the largest component
@@ -142,7 +142,7 @@ bmeta <- delete.vertices(bmeta, V(bmeta)$component!=which.max(components(bmeta)$
 ```
 
 Now that we have singular components we can calculate centrality for each of these networks. imetaCent/bmetaCent are our main units of analysis for our metaweb metrics. 
-```{r, eval=FALSE}
+```{r}
 imetaCent <- data.frame(between=igraph::centralization.betweenness(imeta)$res,
            close=igraph::centralization.closeness(imeta)$res,
            deg=igraph::centralization.degree(imeta, mode="all")$res,
@@ -156,9 +156,8 @@ bmetaCent <- data.frame(between=igraph::centralization.betweenness(bmeta)$res,
            node=V(bmeta)$name)
 ```
 
-
 Adding a type argument for ease of use
-```{r, eval=FALSE}
+```{r}
 imetaCent$type <- NA
 imetaCent$type[imetaCent$node %in% Insectweb$species1] <- "Plant"
 imetaCent$type[imetaCent$node %in% Insectweb$species2] <- "Insect"
@@ -169,7 +168,7 @@ bmetaCent$type[bmetaCent$node %in% Birdweb$species2] <- "Bird"
 ```
 
 Now, let's work on getting a z-standardization for species centrality in the metaweb. The following code shuffles individual local webs (maintaining rown and columnsums), recombines them into a new simulated metaweb, and calculates species centrality in that created web. This is done for an arbitrary number of times (2k), creating a distribution we can use for z-standardization. This is parallalelized for speed, and outputs are provided.
-```{r, eval=FALSE}
+```{r}
 library(parallel)
 library(igraph)
 library(dplyr)
@@ -191,7 +190,7 @@ clusterEvalQ(cl, { #Make sure workers have necessary libraries
 # Export necessary data and functions to the cluster
 clusterExport(cl, varlist = c("Birdweb", "Insectweb"))
 
-# Function to process Birdweb simulations
+# Exported Function to process Birdweb simulations
 bird_sim_fun <- function(i) {
   Vset <- NULL
   Eset <- NULL
@@ -228,7 +227,7 @@ bird_sim_fun <- function(i) {
   return(bmetaCent_temp)
 }
 
-# # Function to process Insectweb simulations
+# Exported Function to process Insectweb simulations
 insect_sim_fun <- function(i) {
   Vset <- NULL
   Eset <- NULL
@@ -286,7 +285,7 @@ stopCluster(cl)
 
 Now adding in the output of z-standardization
 
-```{r, eval=FALSE}
+```{r}
 load(file="cleanData/BmetawebSwaps_raw2k.Rda")
 load(file="cleanData/ImetawebSwaps_raw2k.Rda")
 
@@ -304,17 +303,17 @@ imetaCent$close.z <- (imetaCent$close-imetaCent$meancl)/imetaCent$sdcl
 
 rm(imetaCent_null, isums, bmetaCent_null, bsums) #remove intermediate objects to reduce clutter
 
-#save(imetaCent, imeta, bmetaCent, bmeta, file="cleanData/metaCent.Rda") #Saving the output
+save(imetaCent, imeta, bmetaCent, bmeta, file="cleanData/metaCent.Rda") #Saving the output
 ```
 
 Load in our objects from above.
 ```{r}
-load("cleanData/metaCent.Rda")
-load(file="cleanData/localwebs.RDA")
+#load("cleanData/metaCent.Rda")
+#load(file="cleanData/localwebs.RDA")
 ```
 
 Our metaweb should be ready for analysis. Now let's work on our local webs.
-```{r, eval=FALSE}
+```{r}
 # Get unique site indices
 site_indices <- unique(Insectweb$site_index)
 
@@ -481,7 +480,7 @@ localbCent <- do.call(rbind, localbCent_list)
 ```
 
 Now that we've got the z-transformed versions of our local centrality, we can add back in our range data. 
-```{r, eval=FALSE}
+```{r}
 localbCent <- bmetaCent %>% 
   dplyr::select(., node, envarea, globkm) %>% #add in ranges
   left_join(localbCent, by="node")
@@ -489,7 +488,7 @@ localbCent <- bmetaCent %>%
 localiCent <- imetaCent %>% 
   dplyr::select(., node, envarea, globkm) %>% #add in ranges
   left_join(localiCent, by="node")
-#save(localiCent, localbCent, file="cleanData/localCentrality.Rda")
+save(localiCent, localbCent, file="cleanData/localCentrality.Rda")
 ```
 
 Now we can load in data back for our local networks
@@ -574,41 +573,6 @@ missingB <- dplyr::filter(bmetaCent, is.na(envarea)==T)
 
 
 
-Linear models for the effect of range size on centrality of each of our network X nodetype combinations
-```{r, eval=FALSE}
-#Raw values
-insectVisitor <- imetaCent %>% dplyr::filter(., type=="Insect") %>%
-  lm(data=., formula=close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)))
-summary(insectVisitor)
-
-
-
-library(brms)
-
-bayes.brms <- imetaCent %>% 
-  dplyr::filter(., type=="Insect") %>%
-  brm(close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)), 
-                  family = gaussian(), #gaussian error
-                  data = .,
-                  prior=set_prior("normal(0, 2)", class = "b"), #heirarchical prior-all slopes will use this
-                  chains = 5, # nb of chains
-                  iter = 5000, # nb of iterations, including burnin
-                  warmup = 1000, # burnin
-                  thin = 1) # no thinning
-
-
-#plot(bayes.brms)
-#pp_check(bayes.brms, ndraws = 100, type = 'ecdf_overlay')
-#prior_summary(bayes.brms)
-#pairs(bayes.brms)
-
-samps <- as_draws_df(bayes.brms)
-
-#stanplot(bayes.brms, type = "areas", prob = 0.95)
-#stancode(bayes.brms)
-```
-
-
 ```{r}
 #Sig in geo raw: Visiting Insects, Insect-Visited Plants, Bird-Visited Plants
 clrs <- c("#845ec2", "#00896f", "#ad85ed", "#02b593")
@@ -679,19 +643,14 @@ Now looking at the local networks. Let's create a compositeLocal object we can u
 localiCent$net <- "Insect"
 localbCent$net <- "Bird"
 
-localiCent$type <- NA
-localiCent$type[localiCent$node %in% Insectweb$species1] <- "Plant"
-localiCent$type[localiCent$node %in% Insectweb$species2] <- "Insect"
-
-localbCent$type <- NA
-localbCent$type[localbCent$node %in% Birdweb$species1] <- "Plant"
-localbCent$type[localbCent$node %in% Birdweb$species2] <- "Bird"
+localiCent <- dplyr::select(imetaCent, node, type) %>% left_join(localiCent, ., by="node")
+localbCent <- dplyr::select(bmetaCent, node, type) %>% left_join(localbCent, ., by="node")
 
 compositeLocal <- rbind(localbCent, localiCent) %>% dplyr::filter(., is.na(net)==F)
 compositeLocal$type[compositeLocal$type %in% c("Insect", "Bird")] <- "Floral Visitor" 
 ```
 
-# Performing linear models
+Performing basic liner model version of our analysis. Useful in an exploratory sense, but not presented in the main text. 
 ```{r, eval=FALSE}
 #Raw values
 insectVisitorLocal <- localiCent %>% dplyr::filter(., type=="Insect") %>%
@@ -727,43 +686,21 @@ birdPlant.zLocal <- localbCent %>% dplyr::filter(., type=="Plant") %>%
   lm(data=., formula=z.close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)))
 summary(birdPlant.zLocal)
 
-car::vif(insectVisitorLocal, type="predictor")
-car::vif(insectVisitorLocal, type="predictor")
-car::vif(insectPlantLocal, type="predictor")
-car::vif(birdVisitorLocal, type="predictor")
-car::vif(birdPlantLocal, type="predictor")
+#car::vif(insectVisitorLocal, type="predictor")
+#car::vif(insectVisitorLocal, type="predictor")
+#car::vif(insectPlantLocal, type="predictor")
+#car::vif(birdVisitorLocal, type="predictor")
+#car::vif(birdPlantLocal, type="predictor")
 
-car::vif(insectVisitor.zLocal, type="predictor")
-car::vif(insectPlant.zLocal, type="predictor")
-car::vif(birdVisitor.zLocal, type="predictor")
-car::vif(birdPlant.zLocal, type="predictor")
-```
-
-Alternative: Do we get generally the same results using a Bayesian framework? 
-```{r}
-bayesRunclose <- function(netype, nodetype){
-  if(netype=="Insect"){
-    bayesamp <- imetaCent %>% dplyr::filter(., type==nodetype) %>% #Grab network
-    dplyr::filter(., is.na(globkm)==F & is.na(envarea)==F) %>% #filter to complete cases
-  MCMCglmm::MCMCglmm(fixed=close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)), data=., thin=1, burnin=10000,nitt=20000)
-  }
-  
-  if(netype=="Bird"){
-    bayesamp <- bmetaCent %>% dplyr::filter(., type==nodetype) %>% #Grab network
-    dplyr::filter(., is.na(globkm)==F & is.na(envarea)==F) %>% #filter to complete cases
-  MCMCglmm::MCMCglmm(fixed=close~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)), data=., thin=1)
-  }
-  
-  bayesdf <- data.frame(bayesamp$Sol) #extract samples
-  colnames(bayesdf) <- c("Intercept", "geo", "env", "interaction")
-  bayesdf$type <- nodetype
-  bayesdf$net <- netype
-  bayeslong <- pivot_longer(bayesdf, cols=c(1:4), names_to="param")
-  return(bayeslong)
-}
+#car::vif(insectVisitor.zLocal, type="predictor")
+#car::vif(insectPlant.zLocal, type="predictor")
+#car::vif(birdVisitor.zLocal, type="predictor")
+#car::vif(birdPlant.zLocal, type="predictor")
 ```
 
 
+First, we look at the effect of niche breadth and geographic range on raw (unstandardized) closeness centrality.
+To do so, we create our multivariate baysian regression models using the 'brms' package. 
 ```{r}
 Insect_visitor.brms <- imetaCent %>% 
   dplyr::filter(., type=="Insect") %>%
@@ -810,14 +747,14 @@ Avian_visitor.brms <- bmetaCent %>%
                   warmup = 1000, # burnin
                   thin = 1) # no thinning
 
-plot(Avian_visitor.brms)
-Avian_plant.brms$fit
-Insect_plant.brms$fit
-Insect_visitor.brms$fit
+#plot(Avian_visitor.brms)
+#Avian_plant.brms$fit
+#Insect_plant.brms$fit
+#Insect_visitor.brms$fit
 ```
 
 
-Below, we use as_draws_df to extract posterior samples from the brms models we trained above. 
+Below, we use as_draws_df to extract posterior samples from the brms models we trained above. We then plot draws from these as density plots. 
 ```{r}
 set.seed(1)
 samps <- as_draws_df(Insect_visitor.brms) %>% 
@@ -850,7 +787,6 @@ metaCentbayes$combo <- paste(metaCentbayes$type, metaCentbayes$net, sep="-")
 metaCentbayes$names <- c("Bird-Bird"="Avian Floral Visitor", "Plant-Bird"="Avian-Visited Plant", "Plant-Insect"="Insect-Visited Plant", "Insect-Insect"="Insect Floral Visitor")[metaCentbayes$combo]
 
 metaCentbayes <- dplyr::rename(metaCentbayes, param=name)
-
 
 pdf(file="figs/leftbayesplot_main_v2.pdf", width=9, height=11)
 metaCentbayes %>% dplyr::filter(., param!="intercept") %>%
@@ -887,7 +823,7 @@ bayeClosesum %>% dplyr::filter(., param !="intercept") #Results for raw metaweb
 bayeClosesum %>% dplyr::filter(., param !="intercept") %>% dplyr::filter(., pMCMC<0.05) #Results for raw metaweb
 ```
 
-Repeat for z-standardized version
+Repeating this analysis for z-standardized version
 
 ```{r}
 Insect_visitor.brms.z <- imetaCent %>% 
@@ -968,7 +904,7 @@ metaCentbayes.z$names <- c("Bird-Bird"="Avian Floral Visitor", "Plant-Bird"="Avi
 metaCentbayes.z <- dplyr::rename(metaCentbayes.z, param=name)
 ```
 
-
+Creating Density Plots of z-transformed metaweb centrality
 ```{r}
 pdf(file="figs/rightbayesplot_main_v2.pdf", width=9, height=11)
 metaCentbayes.z %>% dplyr::filter(., param!="intercept") %>%
@@ -993,9 +929,7 @@ ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
   xlab("Coefficient value")+
   theme(axis.text.y=element_blank(), axis.title.x = element_blank(),axis.text.x=element_text(size=28), strip.text.x = element_text(size = 24))+ 
   xlim(-0.4, 0.45)
-dev.off()
-
-
+#dev.off()
 
 bayeZsum <- metaCentbayes.z %>% 
   dplyr::group_by(., combo, param) %>% 
@@ -1003,6 +937,7 @@ bayeZsum <- metaCentbayes.z %>%
   dplyr::mutate(pMCMC = 2*pmin(leftail, rightail)) #grab min tail and double, also drop groupings in case
 
 bayeZsum %>% dplyr::filter(., param != "intercept") %>% dplyr::filter(., pMCMC<0.05) #Results for z-standardized metaweb
+dev.off()
 ```
 
 
@@ -1014,9 +949,10 @@ clrs <- c("#845ec2", "#00896f", "#ad85ed", "#02b593")
 net.labs <- c("Avian Network", "Insect Network")
 names(net.labs) <- c("Bird", "Insect")
 
-compositeLocal$id <- paste(compositeLocal$net, compositeLocal$type)
+compositeLocal$id <- paste(compositeLocal$net, compositeLocal$type) #Create a unifying column of both network and node type
 
-geoRngLocal <- compositeLocal %>% 
+geoRngLocal <- 
+compositeLocal %>% 
   ggplot(., aes(x=scale(log(globkm)), y=close, col=as.factor(id)))+
   geom_point(alpha=0.7)+
   geom_smooth(method="lm", data=dplyr::filter(compositeLocal, net=="Insect"))+ #Remove insignificant coefficients from the lm data
@@ -1094,10 +1030,9 @@ imetaCent
 
 fullCent <- rbind(imetaCent, bmetaCent) %>% dplyr::select(node, type, globkm) %>% unique() #Counting data avialability
 fullCent <- dplyr::filter(fullCent, is.na(globkm)==F)
-table(fullCent$type)
 ```
 
-Now performing Bayesian version the local web plotting. 
+Now creatting our effectsize density plots from our local models. 
 
 ```{r}
 Insect_visitor.brms.local <- localiCent %>% 
@@ -1147,32 +1082,46 @@ Avian_visitor.brms.local <- localbCent %>%
 
 #bayesplot::mcmc_scatter(as.matrix(Avian_visitor.brms.local), pars = c("b_scalelogglobkm", "b_scalelogenvarea"))+geom_vline(xintercept=0)+geom_hline(yintercept=0)
 
-p1 <- bayesplot::mcmc_pairs(as.matrix(Avian_visitor.brms.local),pars = c("b_scalelogglobkm","b_scalelogenvarea"))
-
-ret <- as.data.frame(Avian_visitor.brms.local)
-cor.test(ret$b_scalelogglobkm, ret$b_scalelogenvarea)
+#ret <- as.data.frame(Avian_visitor.brms.local)
+#cor.test(ret$b_scalelogglobkm, ret$b_scalelogenvarea)
 
 #bayesplot::mcmc_areas(as.matrix(Avian_visitor.brms.local),prob_outer = .99,pars = c("b_scalelogglobkm","b_scalelogenvarea","b_scalelogglobkm:scalelogenvarea","b_Intercept"))
-
-#(loog <- brms::loo(Avian_visitor.brms.local))
 ```
 
 Plotting local pairsplots
 ```{r}
+#' Shortcut function for creating parisplots for slope values of a given brms model. 
+#' 
+#' @details
+#' Hard coded to take an object of class `brmsfit` and output reaonably readable pairsplots of slope values of geographic range size, environmental range size, their interaction effect, and the intercept parameter. Not the prettiest, but useful for supplemental plots. 
+
 makePairs <- function(input.brms){
   matemp <- as.matrix(input.brms) #change object type
   colnames(matemp) <- c("b_Intercept", "Geographic", "Environment", "Interaction", "sigma", "Intercept","lprior","lp__") #make slope names readable
-  bayesplot::mcmc_pairs(matemp, , pars=c("b_Intercept", "Geographic", "Environment", "Interaction"), off_diag_fun="hex")
-
+  p <- bayesplot::mcmc_pairs(matemp, , pars=c("b_Intercept", "Geographic", "Environment", "Interaction"), off_diag_fun="hex")
+  label <- paste("Geo & Env Slope Correlation=", round(cor.test(matemp[,"Geographic"], matemp[,"Environment"])$estimate,5), by="")
+  #below we use gtable to add an annotation of our main effect slope correlations. 
+  gtable::gtable_add_grob(
+    p,
+    grob = grid::textGrob(
+      label,
+      x = unit(2, "cm"),
+      y = unit(2, "cm"),
+      just = c("left", "bottom"),
+      gp = gpar(fontsize = 18)
+    ),
+    t = 1, l = 1, b = nrow(p), r = ncol(p),
+    clip = "off",
+    name = "summary_text"
+  )
 }
 ```
 
-
+Creating a series of pairsplots looking at the strength of covariance between fit slope parameters. 
 ```{r}
 p1 <- makePairs(Avian_visitor.brms.local)
 
 p2 <- makePairs(Insect_visitor.brms.local)
-
 
 pdf(file="cleanFigs/supplement/Pairplot_Visitors_Local.pdf", width=8, height=10)
 grid.arrange(
@@ -1586,7 +1535,7 @@ compositeMeta2 %>%
 #Messing around with beta diversity partitioning
 
 Needs a site by species matrix
-```{r, eval==F}
+```{r}
 #cycle across insect pollinators
 partition <- NULL
 
@@ -1638,7 +1587,7 @@ partition$nestedness <- as.numeric(partition$nestedness)
 partition$sorenson <- as.numeric(partition$sorenson)
 partition$nsites <- as.numeric(partition$nsites)
 partition$ncooc <- as.numeric(partition$ncooc)
-#save(partition, file="Betadiverpartition.RDA")
+save(partition, file="Betadiverpartition.RDA")
 ```
 
 Adding our results of our beta diversity partitioning to our existing metawebs
@@ -1659,7 +1608,6 @@ bmetaCent <- partition %>% dplyr::rename(., node=species) %>%
 
 Let's do some plotting
 ```{r}
-
 bmetaCent %>% 
   ggplot(., aes(x=scale(log(globkm)), y=sorenson))+
   geom_point(alpha=0.4)+
@@ -1702,7 +1650,7 @@ ggplot(., aes(x = close_scaled, y = close.z, color = turnover)) +
   geom_point() + geom_smooth(method="lm") +
   scale_color_viridis_c()+theme_classic()+
   ggtitle("Insect-Pollinated Plants") + 
-  stat_cor(aes(label = ..rr.label..), label.x = 0, label.y = -4) +
+  ggpubr::stat_cor(aes(label = ..rr.label..), label.x = 0, label.y = -4) +
   xlab("Metaweb Closeness Centrality")+
   ylab("Z-transformed Metaweb Centrality")
 
@@ -1738,12 +1686,10 @@ ggplot(., aes(x = close_scaled, y = close.z, color = turnover)) +
 pdf(file="cleanFigs/supplement/closenesscomparison.pdf")
 grid.arrange(p1,p2,p3,p4, ncol=2)
 dev.off()
-
-
 ```
 
-
-```{r}
+Supplemental plot looking at the relationship between raw and z-standardized metaweb centrality is dependent on the degree of interaction turnover. 
+```{r, eval=FALSE}
 imeta2 <- localiCent %>% 
   group_by(., node) %>% 
   dplyr::summarise(., localclose=mean(close), localclosesd=sd(close)) %>%
@@ -1785,16 +1731,9 @@ meta2 %>%
 ```
 
 
-```{r}
-ggplot(meta2, aes(x=log(nsites), y=close, col=turnover))+
-  geom_point()+
-  scale_color_viridis_c() +
-  theme_classic()
-```
 
-
-
-```{r}
+Here's an alternative visualization of our GAM (less informative, but potentially more intuitive than the main text plot)
+```{r, eval=FALSE}
 library(mgcv)
 meta2turn <- meta2 %>% dplyr::filter(., is.na(turnover)==F & node!="Apis mellifera") #Only grab species that have turnover component (occur at multiple sites) 
 #gam_model <- mgcv::gam(formula=close~s(nsites, k = 2)+s(turnover), data=meta2turn) 
@@ -1823,7 +1762,6 @@ ggplot(meta2turn, aes(x=nsites, y=close, col=turnover))+
   ylab("Closeness Centrality in Global Metaweb")+
   labs(color="Interaction Turnover")
 #dev.off()
-
 ```
 
 
@@ -1840,8 +1778,6 @@ gratia::draw(gam_close, select = 1, contour = TRUE)+
   ylab("Closeness Centrality in Global Metaweb")+
   ggtitle("")
 #dev.off()
-
-
 
 
 # Define extended ranges
@@ -1897,16 +1833,15 @@ gamzplot <- gratia::draw(gam_close.z, select = 1, contour = TRUE, n = c(400,400)
 #dev.off()
 ```
 
+Drawing + Saving our GAMplot
 ```{r}
-
 gam_close <- mgcv::gam(scale(close) ~ te(nsites, turnover, k=13), data = meta2turn)
 gam.check(gam_close)
 
-#pdf(file="gamplot.pdf", width=7, height=4)
+pdf(file="gamplot.pdf", width=7, height=4)
 grid.arrange(gamplot, gamzplot, ncol=2)
-#dev.off()
+dev.off()
 ```
-
 
 
 Creating a really simple supplemental plot of sites. 
