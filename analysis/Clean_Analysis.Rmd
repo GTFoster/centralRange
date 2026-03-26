@@ -20,15 +20,17 @@ library(curl)
 #library(tidyr)
 library(jsonlite)
 library(tidyverse)
-library(taxize)
+#library(taxize)
 library(vegan)
-library(randomForest)
+#library(randomForest)
 library(gridExtra)
 library(vegan)
 library(ggridges)
 library(brms)
 library(gratia)
-
+library(parallel)
+library(ggpubr)
+library(grid)
 set.seed(1)
 ```
 
@@ -168,10 +170,7 @@ bmetaCent$type[bmetaCent$node %in% Birdweb$species2] <- "Bird"
 ```
 
 Now, let's work on getting a z-standardization for species centrality in the metaweb. The following code shuffles individual local webs (maintaining rown and columnsums), recombines them into a new simulated metaweb, and calculates species centrality in that created web. This is done for an arbitrary number of times (2k), creating a distribution we can use for z-standardization. This is parallalelized for speed, and outputs are provided.
-```{r}
-library(parallel)
-library(igraph)
-library(dplyr)
+```{r, eval=FALSE}
 
 #Most of the parallel version of this code was written by ChatGPT using the following prompt:Hey ChatGPT, use the parallel package in R to parallelize this code across an arbitrary number of cores. 
 
@@ -196,7 +195,7 @@ bird_sim_fun <- function(i) {
   Eset <- NULL
   #lay <- layout_as_bipartite(rg)
   for (j in unique(Birdweb$site_index)) {
-    temp <- Birdweb[Birdweb$site_index == j, ]
+    temp <- Birdweb[Birdweb$site_index == j, ]f
     if (nrow(temp) < 3) next
     temp <- dplyr::select(temp, species1, species2) %>% unique()
     nullsetup <- vegan::nullmodel(table(temp), method = "quasiswap")
@@ -286,8 +285,8 @@ stopCluster(cl)
 Now adding in the output of z-standardization
 
 ```{r}
-load(file="cleanData/BmetawebSwaps_raw2k.Rda")
-load(file="cleanData/ImetawebSwaps_raw2k.Rda")
+load(file="cleanData/BmetawebSwaps_raw2k_newrun.Rda")
+load(file="cleanData/ImetawebSwaps_raw2k_newrun.Rda")
 
 bsums <- dplyr::group_by(bmetaCent_null, node) %>%
   dplyr::summarise(., meancl=mean(close), sdcl=sd(close)) #summarise the individual
@@ -480,6 +479,8 @@ localbCent <- do.call(rbind, localbCent_list)
 ```
 
 Now that we've got the z-transformed versions of our local centrality, we can add back in our range data. 
+
+### BROKE HERE
 ```{r}
 localbCent <- bmetaCent %>% 
   dplyr::select(., node, envarea, globkm) %>% #add in ranges
@@ -506,15 +507,17 @@ localiCent <- dplyr::select(localiCent, -globkm, -envarea)
 localbCent <- dplyr::select(localbCent, -globkm, -envarea)
 ```
 
+## END BREAK?
+
 RANGESIZING ASIDE: CLEAN THIS UP
 ```{r}
 matches <- read.csv(file="backbone_matches.csv")
 
-georng_old <- read.csv(file="data/geosummaryout.csv") 
+#georng_old <- read.csv(file="data/geosummaryout.csv") 
 georng <- read.csv(file="data/geosummaryout_M10.csv") %>% dplyr::rename(., node=verbatim_name) #joining column
 geofill <- read.csv(file="data/geosummaryout_fill.csv") %>% dplyr::rename(., node=verbatim_name) #joining column
 
-envrng_old <- read.csv(file="data/envsummaryout.csv")
+#envrng_old <- read.csv(file="data/envsummaryout.csv")
 envrng <- read.csv(file="data/envsummaryout_M10.csv") %>% dplyr::rename(., node=verbatim_name) #joining column
 envfill <- read.csv(file="data/envsummaryout_fill.csv")%>% dplyr::rename(., node=verbatim_name) #joining column
 
@@ -1689,7 +1692,7 @@ dev.off()
 ```
 
 Supplemental plot looking at the relationship between raw and z-standardized metaweb centrality is dependent on the degree of interaction turnover. 
-```{r, eval=FALSE}
+```{r}
 imeta2 <- localiCent %>% 
   group_by(., node) %>% 
   dplyr::summarise(., localclose=mean(close), localclosesd=sd(close)) %>%
