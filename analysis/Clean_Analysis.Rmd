@@ -31,6 +31,7 @@ library(gratia)
 library(parallel)
 library(ggpubr)
 library(grid)
+library(mgcv)
 set.seed(1)
 ```
 
@@ -171,9 +172,6 @@ bmetaCent$type[bmetaCent$node %in% Birdweb$species2] <- "Bird"
 
 Now, let's work on getting a z-standardization for species centrality in the metaweb. The following code shuffles individual local webs (maintaining rown and columnsums), recombines them into a new simulated metaweb, and calculates species centrality in that created web. This is done for an arbitrary number of times (2k), creating a distribution we can use for z-standardization. This is parallalelized for speed, and outputs are provided.
 ```{r, eval=FALSE}
-
-#Most of the parallel version of this code was written by ChatGPT using the following prompt:Hey ChatGPT, use the parallel package in R to parallelize this code across an arbitrary number of cores. 
-
 load(file="cleanData/localwebs.RDA")
 
 # Define number of cores and simulations
@@ -312,7 +310,7 @@ Load in our objects from above.
 ```
 
 Our metaweb should be ready for analysis. Now let's work on our local webs.
-```{r}
+```{r, eval=FALSE}
 # Get unique site indices
 site_indices <- unique(Insectweb$site_index)
 
@@ -476,35 +474,13 @@ rm(cl)
 
 # Combine all results
 localbCent <- do.call(rbind, localbCent_list)
-```
-
-Now that we've got the z-transformed versions of our local centrality, we can add back in our range data. 
-
-### BROKE HERE
-```{r}
-localbCent <- bmetaCent %>% 
-  dplyr::select(., node, envarea, globkm) %>% #add in ranges
-  left_join(localbCent, by="node")
-
-localiCent <- imetaCent %>% 
-  dplyr::select(., node, envarea, globkm) %>% #add in ranges
-  left_join(localiCent, by="node")
 save(localiCent, localbCent, file="cleanData/localCentrality.Rda")
 ```
 
+### BROKE HERE
 Now we can load in data back for our local networks
 ```{r}
-rm(InsectMeta, BirdMeta) #remove objects used for making these
 load(file="cleanData/localCentrality.Rda")
-```
-
-
-START HERE WITH RANGE SIZES
-```{r}
-imetaCent <- dplyr::select(imetaCent, -globkm, -envarea)
-bmetaCent <- dplyr::select(bmetaCent, -globkm, -envarea)
-localiCent <- dplyr::select(localiCent, -globkm, -envarea)
-localbCent <- dplyr::select(localbCent, -globkm, -envarea)
 ```
 
 ## END BREAK?
@@ -1692,7 +1668,7 @@ dev.off()
 ```
 
 Supplemental plot looking at the relationship between raw and z-standardized metaweb centrality is dependent on the degree of interaction turnover. 
-```{r}
+```{r, FALSE}
 imeta2 <- localiCent %>% 
   group_by(., node) %>% 
   dplyr::summarise(., localclose=mean(close), localclosesd=sd(close)) %>%
