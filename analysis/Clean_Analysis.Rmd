@@ -1207,7 +1207,7 @@ localCentbayes <- dplyr::rename(localCentbayes, param=name) #Local version of ba
 And creating plots
 
 ```{r}
-#pdf(file="figs/local_bayesplot_full.pdf", width=7, height=11)
+pdf(file="cleanFigs/local_bayesplot_full.pdf", width=7, height=11)
 localCentbayes %>% dplyr::filter(., param!="intercept") %>%
 ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
     stat_density_ridges(scale = 1,
@@ -1229,7 +1229,7 @@ ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
   ylab("")+
   xlab("Coefficient value")+
   theme(axis.text.y=element_text(size=12), strip.text.x = element_text(size = 16))
-#dev.off()
+dev.off()
 
 ```
 
