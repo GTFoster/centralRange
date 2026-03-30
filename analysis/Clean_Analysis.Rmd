@@ -5,24 +5,15 @@ date: "2025-06-17"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
 ## Load Libraries
 ```{r}
 library(igraph)
-#library(dplyr)
-#library(ggplot2)
 library(gridExtra)
 library(rgbif)
 library(curl)
-#library(tidyr)
 library(jsonlite)
 library(tidyverse)
-#library(taxize)
 library(vegan)
-#library(randomForest)
 library(gridExtra)
 library(vegan)
 library(ggridges)
@@ -300,7 +291,7 @@ imetaCent$close.z <- (imetaCent$close-imetaCent$meancl)/imetaCent$sdcl
 
 rm(imetaCent_null, isums, bmetaCent_null, bsums) #remove intermediate objects to reduce clutter
 
-save(imetaCent, imeta, bmetaCent, bmeta, file="cleanData/metaCent.Rda") #Saving the output
+#save(imetaCent, imeta, bmetaCent, bmeta, file="cleanData/metaCent.Rda") #Saving the output
 ```
 
 Load in our objects from above.
@@ -483,14 +474,14 @@ load(file="cleanData/localCentrality.Rda")
 ```
 
 Below we save dataframe that countains gbif taxonomic backbone information for our species. We use these later for querying occurrence points ("GBIFdb_Querying.R")
-```{r}
+```{r, eval=FALSE}
 fullquery <- c(unique(Birdweb$species1), unique(Birdweb$species2), unique(Insectweb$species1), unique(Insectweb$species2))
 
 taxa <- rgbif::name_backbone_checklist(fullquery)
 
 #Searched term is in verbatim_name column
 taxa_safe <- dplyr::filter(taxa, is.na(speciesKey)==F)
-#write.csv(taxa_safe, file="backbone_matches.csv", row.names=FALSE)
+write.csv(taxa_safe, file="backbone_matches.csv", row.names=FALSE)
 ```
 
 Loading in geographic range sizes for our species. These are created by the script "RangeSizing_Function.R" (split up so it can be easily run as a subunit)
@@ -775,7 +766,7 @@ metaCentbayes$names <- c("Bird-Bird"="Avian Floral Visitor", "Plant-Bird"="Avian
 
 metaCentbayes <- dplyr::rename(metaCentbayes, param=name)
 
-pdf(file="figs/leftbayesplot_main_v2.pdf", width=9, height=11)
+#pdf(file="figs/leftbayesplot_main_v2.pdf", width=9, height=11)
 metaCentbayes %>% dplyr::filter(., param!="intercept") %>%
 ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
     stat_density_ridges(scale = 1.5,
@@ -893,7 +884,7 @@ metaCentbayes.z <- dplyr::rename(metaCentbayes.z, param=name)
 
 Creating Density Plots of z-transformed metaweb centrality
 ```{r}
-pdf(file="figs/rightbayesplot_main_v2.pdf", width=9, height=11)
+#pdf(file="figs/rightbayesplot_main_v2.pdf", width=9, height=11)
 metaCentbayes.z %>% dplyr::filter(., param!="intercept") %>%
 ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
     stat_density_ridges(scale = 1,
@@ -991,7 +982,7 @@ envRngLocal.z <- compositeLocal %>%
 grid.arrange(geoRngLocal, geoRngLocal.z, envRngLocal, envRngLocal.z, nrow=2)
 #dev.off()
 
-pdf(file="cleanFigs/LocalCentralityPlot_Small_v2.pdf", width=4, height=6.5)
+#pdf(file="cleanFigs/LocalCentralityPlot_Small_v2.pdf", width=4, height=6.5)
 grid.arrange(envRngLocal.z, geoRngLocal.z, nrow=2)
 dev.off()
 ```
@@ -1110,7 +1101,7 @@ p1 <- makePairs(Avian_visitor.brms.local)
 
 p2 <- makePairs(Insect_visitor.brms.local)
 
-pdf(file="cleanFigs/supplement/Pairplot_Visitors_Local.pdf", width=8, height=10)
+#pdf(file="cleanFigs/supplement/Pairplot_Visitors_Local.pdf", width=8, height=10)
 grid.arrange(
   arrangeGrob(p1, top = "Avian Visitors (Local)"),
   arrangeGrob(p2, top = "Insect Visitors (Local)"),
@@ -1122,7 +1113,7 @@ p3 <- makePairs(Avian_plant.brms.local)
 
 p4 <- makePairs(Insect_plant.brms.local)
 
-pdf(file="cleanFigs/supplement/Pairplot_Plants_Local.pdf", width=8, height=10)
+#pdf(file="cleanFigs/supplement/Pairplot_Plants_Local.pdf", width=8, height=10)
 grid.arrange(
   arrangeGrob(p3, top = "Avian-Visited Plants (Local)"),
   arrangeGrob(p4, top = "Insect-Visited Plants (Local)"),
@@ -1134,7 +1125,7 @@ p6 <-  makePairs(Insect_visitor.brms)
 p7 <- makePairs(Avian_visitor.brms.z)
 p8 <-  makePairs(Insect_visitor.brms.z)
 
-pdf(file="cleanFigs/supplement/Pairplot_Avian_Visitors_Metaweb.pdf", width=8, height=10)
+#pdf(file="cleanFigs/supplement/Pairplot_Avian_Visitors_Metaweb.pdf", width=8, height=10)
 grid.arrange(
   arrangeGrob(p5, top = "Avian Visitors (Metaweb)"),
   arrangeGrob(p7, top = "Avian Visitiors (Metaweb Z-transformed)"),
@@ -1142,7 +1133,7 @@ grid.arrange(
 )
 dev.off()
 
-pdf(file="cleanFigs/supplement/Pairplot_Insect_Visitors_Metaweb.pdf", width=8, height=10)
+#pdf(file="cleanFigs/supplement/Pairplot_Insect_Visitors_Metaweb.pdf", width=8, height=10)
 grid.arrange(
   arrangeGrob(p6, top = "Insect Visitors (Metaweb)"),
   arrangeGrob(p8, top = "Insect Visitiors (Metaweb Z-transformed)"),
@@ -1159,7 +1150,7 @@ p11 <- makePairs(Insect_plant.brms)
 p12 <- makePairs(Insect_plant.brms.z)
 
 
-pdf(file="cleanFigs/supplement/Pairplot_Avian_Plants_Metaweb.pdf", width=8, height=10)
+#pdf(file="cleanFigs/supplement/Pairplot_Avian_Plants_Metaweb.pdf", width=8, height=10)
 grid.arrange(
   arrangeGrob(p9, top = "Avian-Visited Plants (Metaweb)"),
   arrangeGrob(p10, top = "Avian-Visited Plants (Metaweb Z-transformed)"),
@@ -1167,7 +1158,7 @@ grid.arrange(
 )
 dev.off()
 
-pdf(file="cleanFigs/supplement/Pairplot_Insect_Plants_Metaweb.pdf", width=8, height=10)
+#pdf(file="cleanFigs/supplement/Pairplot_Insect_Plants_Metaweb.pdf", width=8, height=10)
 grid.arrange(
   arrangeGrob(p11, top = "Insect-Visited Plants (Metaweb)"),
   arrangeGrob(p12, top = "Insect-Visited Plants (Metaweb Z-transformed)"),
@@ -1215,7 +1206,7 @@ localCentbayes <- dplyr::rename(localCentbayes, param=name) #Local version of ba
 And creating plots
 
 ```{r}
-pdf(file="cleanFigs/local_bayesplot_full.pdf", width=7, height=11)
+#pdf(file="cleanFigs/local_bayesplot_full.pdf", width=7, height=11)
 localCentbayes %>% dplyr::filter(., param!="intercept") %>%
 ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
     stat_density_ridges(scale = 1,
@@ -1265,9 +1256,7 @@ nlinks/(length(unique(Birdweb$species1))*length(unique(Birdweb$species2))) #divi
 rm(nlinks) #housekeeping
 ```
 
-## Supplement
-
-Connectance of local webs
+Here we look at the connectance of local webs
 ```{r}
 iCon <- NULL
 
@@ -1519,10 +1508,10 @@ compositeMeta2 %>%
        theme(strip.text.x = element_text(size = 14))
 #dev.off()
 ```
-#Messing around with beta diversity partitioning
+Looking at the effect of interaction turnover. 
 
-Needs a site by species matrix
-```{r}
+Here, we create a measure of interaction turnover using existing functionality from the package `vegan.`  
+```{r, echo=FALSE}
 #cycle across insect pollinators
 partition <- NULL
 
@@ -1574,13 +1563,13 @@ partition$nestedness <- as.numeric(partition$nestedness)
 partition$sorenson <- as.numeric(partition$sorenson)
 partition$nsites <- as.numeric(partition$nsites)
 partition$ncooc <- as.numeric(partition$ncooc)
-save(partition, file="Betadiverpartition.RDA")
+#save(partition, file="cleanData/Betadiverpartition.RDA")
 ```
 
 Adding our results of our beta diversity partitioning to our existing metawebs
 
 ```{r}
-load(file="Betadiverpartition.RDA")
+load(file="cleanData/Betadiverpartition.RDA")
 partition <- dplyr::filter(partition, nsites>1) %>%
   dplyr::filter(., is.na(sorenson)==F)
 
@@ -1627,6 +1616,7 @@ summary(lm(sorenson~log(nsites), data=bmetaCent))
 hist(imetaCent$turnover/imetaCent$sorenson)
 ```
 
+
 ```{r}
 imetaCent$close_scaled <- scale(imetaCent$close)
 bmetaCent$close_scaled <- scale(bmetaCent$close)
@@ -1670,9 +1660,9 @@ ggplot(., aes(x = close_scaled, y = close.z, color = turnover)) +
 
 
 
-pdf(file="cleanFigs/supplement/closenesscomparison.pdf")
+#pdf(file="cleanFigs/supplement/closenesscomparison.pdf")
 grid.arrange(p1,p2,p3,p4, ncol=2)
-dev.off()
+#dev.off()
 ```
 
 Supplemental plot looking at the relationship between raw and z-standardized metaweb centrality is dependent on the degree of interaction turnover. 
@@ -1724,10 +1714,8 @@ Here's an alternative visualization of our GAM (less informative, but potentiall
 library(mgcv)
 meta2turn <- meta2 %>% dplyr::filter(., is.na(turnover)==F & node!="Apis mellifera") #Only grab species that have turnover component (occur at multiple sites) 
 #gam_model <- mgcv::gam(formula=close~s(nsites, k = 2)+s(turnover), data=meta2turn) 
-meta2turn
-mean(meta2turn$turnover)
 
-load("gamtroubles.RDA")
+#load("gamtroubles.RDA")
 #save(meta2turn, gam_model, new_data, file="gamtroubles.RDA")
 gam_model <- mgcv::gam(close ~ te(nsites, turnover), data = meta2turn)
 
@@ -1804,7 +1792,7 @@ gamplot <- gratia::draw(gam_close, select = 1, contour = TRUE, n = c(400,400), d
     legend.background = element_rect(fill = alpha("gray97", 0.8), colour = NA),
     legend.key.height = unit(0.2, "in"),
     legend.key.width = unit(0.2, "in"))
-# dev.off()
+#dev.off()
 
 gamzplot <- gratia::draw(gam_close.z, select = 1, contour = TRUE, n = c(400,400), dist = 0.15) +
   theme_classic() +
@@ -1825,9 +1813,9 @@ Drawing + Saving our GAMplot
 gam_close <- mgcv::gam(scale(close) ~ te(nsites, turnover, k=13), data = meta2turn)
 gam.check(gam_close)
 
-pdf(file="gamplot.pdf", width=7, height=4)
+#pdf(file="cleanFigs/gamplot.pdf", width=7, height=4)
 grid.arrange(gamplot, gamzplot, ncol=2)
-dev.off()
+#dev.off()
 ```
 
 
