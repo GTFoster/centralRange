@@ -3,8 +3,6 @@ library(gbifdb)
 library(rgbif) #Only used to find taxonkey
 library(CoordinateCleaner)
 
-
-load(file="toQuery_centralRange.Rda") #Load in our total species list
 gbif <- gbif_local(dir='/home/shared/occurrence/2024-04-01') #Tell R where to find our local GBIF copy
 #I apologize to the reproducibility gods for absolute paths
 

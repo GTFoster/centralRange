@@ -305,8 +305,8 @@ save(imetaCent, imeta, bmetaCent, bmeta, file="cleanData/metaCent.Rda") #Saving 
 
 Load in our objects from above.
 ```{r}
-#load("cleanData/metaCent.Rda")
-#load(file="cleanData/localwebs.RDA")
+load("cleanData/metaCent.Rda")
+load(file="cleanData/localwebs.RDA")
 ```
 
 Our metaweb should be ready for analysis. Now let's work on our local webs.
@@ -477,15 +477,23 @@ localbCent <- do.call(rbind, localbCent_list)
 save(localiCent, localbCent, file="cleanData/localCentrality.Rda")
 ```
 
-### BROKE HERE
 Now we can load in data back for our local networks
 ```{r}
 load(file="cleanData/localCentrality.Rda")
 ```
 
-## END BREAK?
+Below we save dataframe that countains gbif taxonomic backbone information for our species. We use these later for querying occurrence points ("GBIFdb_Querying.R")
+```{r}
+fullquery <- c(unique(Birdweb$species1), unique(Birdweb$species2), unique(Insectweb$species1), unique(Insectweb$species2))
 
-RANGESIZING ASIDE: CLEAN THIS UP
+taxa <- rgbif::name_backbone_checklist(fullquery)
+
+#Searched term is in verbatim_name column
+taxa_safe <- dplyr::filter(taxa, is.na(speciesKey)==F)
+#write.csv(taxa_safe, file="backbone_matches.csv", row.names=FALSE)
+```
+
+Loading in geographic range sizes for our species. These are created by the script "RangeSizing_Function.R" (split up so it can be easily run as a subunit)
 ```{r}
 matches <- read.csv(file="backbone_matches.csv")
 
@@ -1837,7 +1845,7 @@ sites <- dplyr::select(Insectweb, network_name, location_address, latitude, long
 
 world <- ggplot2::map_data("world")
 
-#pdf(file="sitemap.pdf", width=8, height=5)
+#pdf(file="cleanFigs/supplement/sitemap.pdf", width=8, height=5)
 ggplot() +
   geom_polygon(data = world, aes(x=long, y = lat, group = group)) + 
   coord_fixed(1.3)+
@@ -1849,5 +1857,6 @@ ggplot() +
   labs(color = "Network Type")
 #dev.off()
 ```
+
 
 
