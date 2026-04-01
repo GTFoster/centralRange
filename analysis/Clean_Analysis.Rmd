@@ -71,7 +71,7 @@ Let's do some double checking to
 1) Separate vertebrate from invertebrate pollination networks
 2) Make different sources are correctly harmonized
 
-I was first going check every taxa with taxize, but turns out this actually takes a long time to run with so many taxa. Instead, I looked at the original papers for the 74 publications included in these data. Slow, but still faster than taxize. I load in the key I created for that below, and use that to mark which species are which node types. 
+I was first going check every taxa with `taxize`, but turns out this actually takes a long time to run with so many taxa. Instead, I looked at the original papers for the 74 publications included in these data. Slow, but still faster than taxize. I load in the key I created for that below, and use that to mark which species are which node types. 
 
 ```{r, eval=FALSE}
 studykey <- read.csv(file="studykey.csv")
@@ -744,11 +744,6 @@ Avian_visitor.brms <- bmetaCent %>%
                   iter = 5000, # nb of iterations, including burnin
                   warmup = 1000, # burnin
                   thin = 1) # no thinning
-
-#plot(Avian_visitor.brms)
-#Avian_plant.brms$fit
-#Insect_plant.brms$fit
-#Insect_visitor.brms$fit
 ```
 
 
@@ -818,7 +813,7 @@ bayeClosesum <- metaCentbayes %>%
 
 bayeClosesum %>% dplyr::filter(., param !="intercept") #Results for raw metaweb
 
-bayeClosesum %>% dplyr::filter(., param !="intercept") %>% dplyr::filter(., pMCMC<0.05) #Results for raw metaweb
+bayeClosesum %>% dplyr::filter(., param !="intercept") %>% dplyr::filter(., pMCMC<0.05) #Results for raw (unstandardized) metaweb
 ```
 
 Repeating this analysis for z-standardized version
@@ -829,7 +824,7 @@ Insect_visitor.brms.z <- imetaCent %>%
   brm(close.z~scale(log(globkm))+scale(log(envarea))+scale(log(globkm))*scale(log(envarea)), 
                   family = gaussian(), #gaussian error
                   data = .,
-                  prior=set_prior("normal(0, 2)", class = "b"), #heirarchical prior-all slopes will use this
+                  prior=set_prior("normal(0, 2)", class = "b"), #hierarchical prior-all slopes will use this
                   chains = 5, # nb of chains
                   iter = 5000, # nb of iterations, including burnin
                   warmup = 1000, # burnin
@@ -1007,7 +1002,7 @@ grid.arrange(envRngLocal.z, geoRngLocal.z, nrow=2)
 dev.off()
 ```
 
-#Summary information
+#Some Network Summary information
 ```{r}
 cor.test(compositeMeta$globkm, compositeMeta$envarea)
 
@@ -1030,7 +1025,7 @@ fullCent <- rbind(imetaCent, bmetaCent) %>% dplyr::select(node, type, globkm) %>
 fullCent <- dplyr::filter(fullCent, is.na(globkm)==F)
 ```
 
-Now creatting our effectsize density plots from our local models. 
+Now creating our effectsize density plots from our local models. 
 
 ```{r}
 Insect_visitor.brms.local <- localiCent %>% 
@@ -1188,9 +1183,8 @@ dev.off()
 ```
 
 
-
+Extracting and processing posterior samples from models of local centrality. 
 ```{r}
-
 samps <- as_draws_df(Insect_visitor.brms.local) %>% 
   dplyr::select(., b_Intercept, b_scalelogglobkm, b_scalelogenvarea, "b_scalelogglobkm:scalelogenvarea") %>%
   dplyr::mutate(type="Insect", net="Insect")
@@ -1223,8 +1217,7 @@ localCentbayes$names <- c("Bird-Bird"="Avian Floral Visitor", "Plant-Bird"="Avia
 localCentbayes <- dplyr::rename(localCentbayes, param=name) #Local version of bayesian plotting
 ```
 
-And creating plots
-
+Creating posterior density plots for local webs (used in fig 4 of the main text)
 ```{r}
 #pdf(file="cleanFigs/local_bayesplot_full.pdf", width=7, height=11)
 localCentbayes %>% dplyr::filter(., param!="intercept") %>%
@@ -1251,7 +1244,7 @@ ggplot(., aes(x = value, y = names, fill=factor(stat(quantile)))) +
 dev.off()
 
 ```
-
+Summary information of local plots
 
 ```{r}
 bayeLocsum <- localCentbayes %>% 
@@ -1324,7 +1317,7 @@ range(bmetaCent$globkm, na.rm=T)
 ```
 
 
-Supplemental plots
+Plot looking how local centrality varies across species that occur at multiple sites. 
 ```{r}
 compositeLocal <- compositeLocal %>% 
   dplyr::group_by(., node, net) %>% 
@@ -1384,7 +1377,7 @@ grid.arrange(bRepPlot, bRepPlot.z, iRepPlot, iRepPlot.z, nrow=2)
 ```
 
 
-Related question: Is # of coocuring species related to geographic range size? What about centrality?
+Supplemental question: Is # of coocuring species related to geographic range size? What about centrality?
 ```{r}
 #Create species-by-site table
 species1_by_site <- Birdweb %>%
@@ -1528,6 +1521,7 @@ compositeMeta2 %>%
        theme(strip.text.x = element_text(size = 14))
 #dev.off()
 ```
+
 Looking at the effect of interaction turnover. 
 
 Here, we create a measure of interaction turnover using existing functionality from the package `vegan.`  
@@ -1636,11 +1630,10 @@ summary(lm(sorenson~log(nsites), data=bmetaCent))
 hist(imetaCent$turnover/imetaCent$sorenson)
 ```
 
-
+Looking at the relationship between scaled and unscaled metaweb centrality. 
 ```{r}
 imetaCent$close_scaled <- scale(imetaCent$close)
 bmetaCent$close_scaled <- scale(bmetaCent$close)
-
 
 p1 <- imetaCent %>% dplyr::filter(., is.na(turnover)==F & type=="Plant") %>%
 ggplot(., aes(x = close_scaled, y = close.z, color = turnover)) +
@@ -1686,7 +1679,7 @@ grid.arrange(p1,p2,p3,p4, ncol=2)
 ```
 
 Supplemental plot looking at the relationship between raw and z-standardized metaweb centrality is dependent on the degree of interaction turnover. 
-```{r, FALSE}
+```{r}
 imeta2 <- localiCent %>% 
   group_by(., node) %>% 
   dplyr::summarise(., localclose=mean(close), localclosesd=sd(close)) %>%
@@ -1762,7 +1755,6 @@ ggplot(meta2turn, aes(x=nsites, y=close, col=turnover))+
 
 ```{r}
 meta2turn <- meta2 %>% dplyr::filter(., is.na(turnover)==F & node!="Apis mellifera") #Only grab species that have turnover component (occur at multiple sites) 
-#gam_model <- mgcv::gam(formula=close~s(nsites, k = 2)+s(turnover), data=meta2turn) 
 
 gam_close <- mgcv::gam(scale(close) ~ te(nsites, turnover), data = meta2turn)
 gam_close.z <- mgcv::gam(scale(close.z) ~ te(nsites, turnover), data = meta2turn)
@@ -1828,7 +1820,7 @@ gamzplot <- gratia::draw(gam_close.z, select = 1, contour = TRUE, n = c(400,400)
 #dev.off()
 ```
 
-Drawing + Saving our GAMplot
+Drawing + Saving our GAMplot (figure 3 of the main text)
 ```{r}
 gam_close <- mgcv::gam(scale(close) ~ te(nsites, turnover, k=13), data = meta2turn)
 gam.check(gam_close)

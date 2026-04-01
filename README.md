@@ -35,7 +35,7 @@ manuscript
 ├── ├── data Input data for our analysis
 ├── ├── ├──  GBIF folder containing gbif occurence points used in the analysis.
 ├── ├── worldclim Environmental data used in the calculation of species' niche breadths
-├── analysis
+├── manuscript
 ```
 
 
