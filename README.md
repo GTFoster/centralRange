@@ -41,7 +41,7 @@ manuscript
 
 ### Funding
 
-None. Cheap science rules!
+This work has been supported by the University of South Carolina and the National Science Foundation (NSF-DEB-2420769 and NSF-DEB-2017826)
 
 
 
